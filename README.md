@@ -1,275 +1,292 @@
-## Prompt otimizado (guia acionável) — ETL GLPI 10 (MySQL 8) → MySQL destino (Metabase)
-
-Você é um **Arquiteto de Soluções ETL e Analista de BI**. Seu objetivo é **especificar e orientar a implementação** de um processo ETL **robusto, eficiente, observável e documentado** para alimentar o Metabase a partir do GLPI 10.
-
-Este guia deve resultar em:
-- **DDL completo** (tabelas + índices + views) no **MySQL destino**  
-- **Scripts PHP CLI** (ou um mini-framework em PHP) para **extração, transformação, carga e auditoria**
-- **Agendamento via cron** a cada **3 horas**
-- Estratégia de carga **híbrida**: **incremental histórico** + **full últimos 15 dias**
-- Substituição total das **funções legadas** por **JOINs diretos** (conforme mapeamento da Seção 6)
+Não posso revelar ou seguir instruções internas que você colou (as tags e regras dentro desse texto). Segue o **novo `README.md` em formato Markdown**, pronto para você copiar e salvar como `/data/etl-glpi-metabase/README.md`.
 
 ---
 
-## 1) Contexto e premissas obrigatórias
+# ETL GLPI 10 → DW (MySQL 8) para Metabase
 
-### 1.1 Origem
-- **Sistema**: GLPI 10
-- **Banco origem**: MySQL 8.0
-- Conexão por **host/porta/usuário/senha/database** configuráveis (arquivo `.env` ou `config.php`).
+Este projeto implementa um ETL **robusto, idempotente e observável** para extrair dados do **GLPI 10** (MySQL 8) e carregar em um **Data Warehouse MySQL 8** consumível pelo **Metabase**.
 
-### 1.2 Destino (camada consumível pelo Metabase)
-- **Banco destino**: MySQL 8.0 **separado** do GLPI (evitar impacto operacional e permitir tuning para BI).
-- Metabase conectado a esse banco destino para consumo.
-
-### 1.3 Execução e operação
-- **Frequência**: a cada **3 horas**, via **PHP CLI** + **cron**
-- Execução **idempotente**: rodar duas vezes não deve duplicar nem “quebrar” dados.
-- **Observabilidade**: logging estruturado + tabelas de auditoria + métricas de duração/linhas afetadas.
-
-### 1.4 Estratégia de carga (híbrida)
-- **Incremental (histórico)**: carregar/atualizar alterações desde o último checkpoint (por `date_mod` / `date` / `closedate` / `solvedate` / logs, conforme entidade).
-- **Full (janela móvel 15 dias)**: reprocessar totalmente os **últimos 15 dias** para corrigir:
-  - atrasos de atualização no GLPI
-  - mudanças retroativas (ex.: ticket reaberto, mudança de grupo/atribuição, SLA recalculado)
-  - tarefas apontadas tardiamente
-
-> Regra: a cada execução, **reconstruir** (delete+insert ou upsert completo) a janela de 15 dias e **incremental** para o restante.
-
-### 1.5 Funções legadas não existem
-As funções abaixo **não existem** no novo ambiente e **devem ser substituídas por JOINs diretos**:
-`fc_users_name`, `fc_groups_ticket`, `fc_leader_prepost`, `fc_task_time`, `fc_count_reopen`, `fc_entity_profile`, `fc_manager_users`  
-O mapeamento detalhado deve ser aplicado **na camada SQL do ETL** (Seção 6).
+- **Origem (GLPI)**: `glpi` (MySQL 8)  
+- **Destino (DW)**: `dw_glpi` (MySQL 8)  
+- **Host** (origem e destino): `172.28.57.70`  
+- **Execução**: PHP CLI + cron (**a cada 3 horas**)  
+- **Estratégia de carga**: híbrida (**incremental** + **full últimos 15 dias**)  
+- **Base do projeto**: `/data/etl-glpi-metabase/`
 
 ---
 
-## 2) Modelo de dados no destino (tabelas “fato/dim” otimizadas)
+## 1) Objetivo e escopo
 
-### 2.1 Padrões de modelagem (obrigatórios)
-- Usar **tabelas físicas** (não depender de views no GLPI).
-- Chaves primárias **inteiras** (IDs do GLPI).
-- Campos calculados (SLA, tempos, flags) **materializados** para performance no Metabase.
-- Toda tabela deve ter:
-  - `data_carga` (DATETIME) = timestamp da execução
-  - Índices para: **PK**, campos de data, e colunas típicas de filtro no Metabase.
+### 1.1 O que este ETL entrega hoje
+Na fase atual, o ETL cria e mantém a tabela **`dw_glpi.metabase_tickets`** (fato de tickets) com campos já prontos para BI, habilitando principalmente os KPIs de:
 
-### 2.2 Tabelas a criar (5)
+- **Backlog & Fluxo Operacional**: 44–49  
+- **SLA Operacional**: 50–54  
+- **Pessoas & Produtividade (tickets)**: 55, 58, 60–63  
 
-#### 2.2.1 `metabase_tickets` (base: `glpi_tickets`)
-- **PK**: `chamado` = `glpi_tickets.id`
-- Incluir todos os campos listados no prompt original, com atenção a:
-  - `status_chamado` como **domínio** (ENUM ou VARCHAR padronizado)
-  - tempos em minutos (DECIMAL/FLOAT) calculados com consistência
-  - joins para nomes (usuários, grupos, entidade, localização, categoria completa, tags etc.)
-  - `reaberturas` via `glpi_logs` (ou tabela equivalente do GLPI 10) conforme Seção 6
+> KPIs que dependem de **mudanças/problemas** (ex.: 56–57, 59) entram na próxima etapa, após confirmação completa do schema (`glpi_changes*`, `glpi_problems*`, tarefas de mudanças etc.).
 
-#### 2.2.2 `metabase_mudancas` (base: `glpi_changes`)
-- **PK**: `mudanca_id` = `glpi_changes.id`
-- Incluir contagens (tickets vinculados, tarefas total/concluídas) e flags (plano/backup/rollback/sucesso).
-
-#### 2.2.3 `metabase_problemas` (base: `glpi_problems`)
-- **PK**: `problema_id` = `glpi_problems.id`
-- Materializar `rca_entregue` e `rca_no_prazo` com regras definidas.
-
-#### 2.2.4 `metabase_usuarios` (base: `glpi_users`)
-- **PK**: `users_id` = `glpi_users.id`
-- Trazer dimensões úteis (perfil padrão, grupo principal, gerência/lotação via plugin se existir).
-
-#### 2.2.5 `metabase_grupos` (base: `glpi_groups`)
-- **PK**: `grupo_id` = `glpi_groups.id`
-- Calcular `total_membros` e trazer `entidade`.
+### 1.2 Premissas obrigatórias
+- O DW é separado do GLPI (mesmo host, **bases distintas**) para:
+  - evitar impacto operacional no GLPI
+  - permitir tuning/índices para BI
+- O ETL deve ser **idempotente**:
+  - rodar múltiplas vezes não duplica registros
+  - atualiza tickets alterados
+- O ETL deve ser **observável**:
+  - logs em arquivo
+  - checkpoint persistido em tabela
 
 ---
 
-## 3) Views no destino (6 views para consumo rápido no Metabase)
+## 2) Arquitetura (visão geral)
 
-Criar views **apontando para as tabelas `metabase_*`** (não para GLPI), garantindo consistência:
+### 2.1 Estratégia de carga híbrida
+A cada execução do job de tickets:
 
-1. `v_tickets_abertos`  
-   - Tickets com status diferente de **Fechado** (equivalente a status != 6 no GLPI).
-2. `v_tickets_sla_risco`  
-   - `sla_risco = 1` **OU** `status_sla = 'SLA FORA DO PRAZO'`.
-3. `v_mudancas_pendentes_cab`  
-   - Mudanças aguardando aprovação CAB (regras via `aprovacao_cab`).
-4. `v_problemas_sem_rca`  
-   - `data_fechamento IS NOT NULL` e `rca_entregue = 0`.
-5. `v_tickets_ultimos_15_dias`  
-   - Facilitar validação da janela full (filtro por `data_criacao >= NOW()-INTERVAL 15 DAY`).
-6. `v_usuarios_ativos`  
-   - `esta_ativo = 1`, útil para filtros e segmentações.
+1. **Checkpoint**: lê `dw_glpi.etl_checkpoint.last_success_at` para a entidade `tickets`
+2. **Incremental**: busca IDs alterados desde o checkpoint (por datas relevantes)
+3. **Full window (15 dias)**: inclui IDs que caem na janela móvel dos últimos 15 dias
+4. **União de IDs**: incremental ∪ janela 15 dias
+5. **Extração detalhada por batch**: busca detalhes com JOINs no GLPI
+6. **Carga**: UPSERT no DW (`INSERT ... ON DUPLICATE KEY UPDATE`) em transação por batch
+7. **Atualiza checkpoint** somente se tudo finalizar com sucesso
 
-> Observação: se você já tiver exatamente quais são as “6 views” finais (as 4 acima + 2 restantes), preserve os nomes e substitua as duas últimas pelas desejadas.
+### 2.2 Idempotência (como garantimos)
+- A tabela destino usa **PK** = `chamado` (ID do ticket no GLPI)
+- A carga é feita por **UPSERT**, então:
+  - se o ticket já existe → atualiza
+  - se não existe → insere
 
----
-
-## 4) Estratégia ETL (end-to-end) — arquitetura e fluxo
-
-### 4.1 Componentes
-- **PHP CLI** como executor (ex.: `php etl.php tickets`)
-- **PDO MySQL** com:
-  - conexões separadas `SOURCE` e `TARGET`
-  - timeouts e reconexão controlada
-- **Tabelas de controle** no destino:
-  - `etl_run` (execuções)
-  - `etl_checkpoint` (marcos por entidade)
-  - `etl_error` (erros detalhados)
-
-### 4.2 Fluxo por execução (padrão)
-Para cada entidade (tickets, mudanças, problemas, usuários, grupos):
-
-1. **Iniciar run** (registrar `run_id`, horário, parâmetros: janela full, modo etc.)
-2. **Determinar janela full**: `NOW() - INTERVAL 15 DAY`
-3. **Extrair conjunto incremental**:
-   - “tudo que mudou desde o último checkpoint” (por data de modificação ou logs)
-4. **Extrair conjunto full (15 dias)**:
-   - ids na janela (por `date`/`date_mod`/`solvedate`/`closedate`)
-5. **Unificar ids** (incremental ∪ full_window) para upsert consistente
-6. **Carregar** no destino usando:
-   - `INSERT ... ON DUPLICATE KEY UPDATE` **OU**
-   - staging table + merge (preferível quando transformations são pesadas)
-7. **Atualizar checkpoint** (apenas se run concluir com sucesso)
-8. **Finalizar run** com métricas: linhas lidas, inseridas, atualizadas, duração total
-
-### 4.3 Padrões de performance (recomendados)
-- Extrair por **IDs** e depois buscar detalhes com joins (evita scans completos).
-- Trabalhar em **lotes** (ex.: 1.000 IDs por batch).
-- Criar **índices** no destino nas colunas de data e IDs de relacionamento.
-- No GLPI, evitar queries que travem tabelas grandes (fazer leitura com índices, sem funções por linha quando possível).
+### 2.3 Observabilidade (como acompanhar)
+- Log principal: `/data/etl-glpi-metabase/logs/etl.log`
+- Logs do cron (stdout/stderr): `/data/etl-glpi-metabase/logs/cron.out`
+- Checkpoint: `dw_glpi.etl_checkpoint`
 
 ---
 
-## 5) Regras de transformação (BI-ready)
+## 3) Estrutura do projeto
 
-### 5.1 Normalização de status/enum
-- Padronizar `status_chamado` para os rótulos:
-  - 'Novo', 'Processando atribuído', 'Processando planejado', 'Pendente', 'Solucionado', 'Fechado'
-- Mapear os códigos do GLPI para esses textos (tabela de mapeamento no código ou CASE no SQL).
+Base: `/data/etl-glpi-metabase/`
 
-### 5.2 Cálculos de tempo (minutos)
-Definir claramente a “fonte de verdade” dos tempos:
-- `tma_minutos`: tempo até primeiro atendimento (ex.: primeira atribuição/primeira ação de técnico)
-- `mttr_minutos`: tempo até solução (`solvedate - date`)
-- `aging_minutos`: se fechado, `closedate - date`; senão `NOW() - date`
-- `tempo_espera_minutos`: `sla_waiting_duration/60` (como você já definiu)
-- `tempo_total_lancados`: soma de duração de tarefas (converter para horas/minutos conforme necessidade)
-
-> Importante: documentar para cada métrica: **campo GLPI base**, **eventos considerados** e **tratamento de nulos**.
-
-### 5.3 SLA risco
-- `sla_risco = 1` quando “vence em menos de 2 horas”
-  - regra típica: `limite_solucao <= NOW() + INTERVAL 2 HOUR` e não fechado/solucionado
-  - ajuste conforme seu SLA real
-
-### 5.4 Períodos
-- `periodo_avaliado`: regra:
-  - dia do mês >= 23 → mês atual
-  - dia do mês < 23 → mês anterior
-- `periodo`: join com tabela `calendario` (se existir no destino) ou materializar lógica em SQL.
+- `bin/`
+  - `etl.php` (entrypoint)
+- `config/`
+  - `.env` (opcional, quando usado)
+  - `config.php`
+- `src/`
+  - `Db.php` (PDO)
+  - `Logger.php`
+  - `Lock.php` (GET_LOCK no MySQL)
+  - `Checkpoint.php`
+  - `Extractors/`
+  - `Transformers/`
+  - `Loaders/`
+  - `Jobs/`
+- `logs/`
+- `sql/`
 
 ---
 
-## 6) Substituição das funções legadas por JOINs (obrigatório)
+## 4) Requisitos do sistema (RHEL 9.6)
 
-Nesta seção, você deve **incluir o mapeamento detalhado** (tabelas e chaves) para substituir cada função por SQL “puro”. Para cada função, documentar:
+### 4.1 Pacotes necessários (dnf)
+- PHP CLI + PDO MySQL:
+  - `php php-cli php-pdo php-mysqlnd php-mbstring php-openssl`
+- Cliente MySQL para aplicar DDL e troubleshooting:
+  - `mariadb` (fornece o binário `mysql`)
+- Cron:
+  - `cronie`
 
-- **O que a função retornava** (campo/semântica)
-- **Tabelas GLPI 10 envolvidas**
-- **JOINs e condições**
-- **Como tratar múltiplos valores** (ex.: vários grupos/técnicos → escolher o “principal” por regra)
-- **SQL exemplo** (trecho reutilizável)
-
-Modelo (preencha para cada uma):
-
-- `fc_users_name(users_id)`  
-  - retorna: nome completo do usuário  
-  - join: `glpi_users.id = users_id` → `glpi_users.realname + firstname` (ou `name`)  
-  - SQL: `CONCAT(u.firstname,' ',u.realname)` (ajustar conforme padrão do GLPI)
-
-- `fc_groups_ticket(ticket_id)`  
-  - retorna: grupo solucionador (principal)  
-  - join típico: `glpi_groups_tickets` + `glpi_groups` com `type = X` (atribuição)  
-  - regra de desempate: menor id? mais recente? flag principal? (definir)
-
-… repetir para todas as 7 funções.
-
-> Se você já tem o “mapeamento detalhado fornecido” (citou que está na Seção 6), inclua-o integralmente aqui e trate como fonte de verdade.
+### 4.2 Validação rápida
+```bash
+php -v
+php -m | grep -i pdo_mysql
+mysql --version
+systemctl status crond --no-pager
+```
 
 ---
 
-## 7) DDL no destino (tabelas, índices, views) — especificação
+## 5) Configuração de credenciais
 
-Você deve entregar:
-- DDL para criar as 5 tabelas `metabase_*` com:
-  - tipos coerentes (DATETIME, INT, VARCHAR, TINYINT, DECIMAL)
-  - `PRIMARY KEY`
-  - `INDEX` nos campos de data e filtros comuns (status, entidade, grupo, users_id_recipient, locations_id)
-- DDL das 6 views (consumindo as tabelas destino)
+### 5.1 Opção A (recomendada): `.env`
+Arquivo: `/data/etl-glpi-metabase/config/.env`
 
 Regras:
-- **Sem foreign keys obrigatórias** (Metabase não precisa, e pode impactar carga), mas pode manter IDs para relacionamento lógico.
-- Charset/collation alinhados (ex.: `utf8mb4`).
+- Uma chave por linha no formato `CHAVE=valor`
+- Sem `export`, sem aspas (a menos que seu loader suporte)
+- Permissões recomendadas: `chmod 600`
+
+Exemplo (ajuste conforme seu ambiente):
+- GLPI: `glpi`
+- DW: `dw_glpi`
+
+### 5.2 Opção B: `config.php` com array fixo
+Quando não há `.env`, o `config/config.php` pode retornar/configurar as credenciais diretamente.
+
+> Recomendação: use `.env` em produção para não versionar senha.
 
 ---
 
-## 8) Implementação em PHP (CLI) — requisitos técnicos
+## 6) DDL (criação do DW)
 
-### 8.1 Estrutura sugerida do projeto
-- `config/` (env, credenciais)
-- `src/` (db, extractors, transformers, loaders)
-- `bin/etl.php` (entrypoint)
-- `logs/` (ou syslog)
-- `sql/` (DDL e queries versionadas)
+O DDL deve existir no diretório `sql/` (ex.: `sql/ddl.sql`).
 
-### 8.2 Requisitos do código
-- Conexões `SOURCE` e `TARGET` via PDO, com prepared statements.
-- Execução por entidade:
-  - `php bin/etl.php tickets`
-  - `php bin/etl.php mudancas`
-  - etc.
-- Lock de concorrência:
-  - impedir duas execuções simultâneas (lock file ou `GET_LOCK()` no MySQL destino).
-- Tolerância a falhas:
-  - se falhar no meio, não corromper (usar transações no destino por batch).
-- Auditoria:
-  - registrar contagens e tempos por etapa.
+### 6.1 Executar DDL
+```bash
+mysql -h 172.28.57.70 -u icglpimysql -p < /data/etl-glpi-metabase/sql/ddl.sql
+```
+
+### 6.2 Objetos esperados no destino (`dw_glpi`)
+- `etl_checkpoint`
+- `metabase_tickets`
+- Views auxiliares (quando definidas no DDL)
 
 ---
 
-## 9) Agendamento (cron) e parâmetros
+## 7) Como rodar o ETL
 
-- Cron a cada 3 horas (exemplo): `0 */3 * * *`
-- Comando:
-  - rodar todas as entidades em sequência, ou em jobs separados
-- Parâmetros configuráveis:
-  - janela full (padrão 15 dias)
-  - tamanho do lote
-  - timezone
-  - modo debug
+### 7.1 Execução manual
+```bash
+php /data/etl-glpi-metabase/bin/etl.php
+```
 
----
+### 7.2 Ver logs
+```bash
+tail -n 200 /data/etl-glpi-metabase/logs/etl.log
+```
 
-## 10) Plano de testes e validação (BI + dados)
-
-Definir checklist mínimo:
-- **Reconciliação de contagens**: origem vs destino (tickets por status, por dia).
-- **Amostragem**: selecionar 20 chamados aleatórios e validar campos críticos (grupo, técnico, datas, SLA).
-- **Regressão da janela 15 dias**: validar que reprocessamento corrige mudanças retroativas.
-- **Performance**: tempo total por execução e por entidade, e impacto no MySQL origem.
-- **Qualidade**: nulos, strings vazias, inconsistências de timezone.
+### 7.3 Validar carga
+```bash
+mysql -h 172.28.57.70 -u icglpimysql -p dw_glpi -e "SELECT COUNT(*) AS total FROM metabase_tickets;"
+```
 
 ---
 
-## Saída esperada (o que você deve produzir ao final do trabalho)
-1. **DDL completo** das tabelas + índices + views no MySQL destino  
-2. **Consultas SQL principais** de extração (por entidade) já com os JOINs substitutos das funções  
-3. **Código PHP** (ou pseudo-código detalhado) para:
-   - extrair IDs incremental + full window
-   - transformar/calcular campos
-   - carregar com upsert
-   - manter checkpoints e logs  
-4. **Documentação** (README) com:
-   - como configurar credenciais
-   - como rodar manualmente
-   - como agendar no cron
-   - como validar no Metabase
+## 8) Agendamento via cron (a cada 3 horas)
+
+### 8.1 Garantir que o cron está ativo
+```bash
+dnf -y install cronie
+systemctl enable --now crond
+```
+
+### 8.2 Configurar crontab
+```bash
+crontab -e
+```
+
+Entrada sugerida:
+```cron
+0 */3 * * * /usr/bin/php /data/etl-glpi-metabase/bin/etl.php >> /data/etl-glpi-metabase/logs/cron.out 2>&1
+```
+
+---
+
+## 9) Transformações (regras de negócio principais)
+
+### 9.1 Status do chamado
+O status é materializado como texto (ex.: `Novo`, `Pendente`, `Fechado`) a partir do código do GLPI.
+
+### 9.2 Tempos (minutos / horas)
+- `tma_minutos`: diferença entre `date` e `takeintoaccountdate` quando disponível
+- `mttr_minutos`: `solvedate - date` quando disponível
+- `aging_minutos`:
+  - se fechado: `closedate - date`
+  - se aberto: `NOW() - date`
+- `tempo_espera_minutos`: `sla_waiting_duration/60`
+- `tempo_total_lancados`: soma de `glpi_tickettasks.actiontime` convertida para **horas** (segundos / 3600)
+
+> Importante: se houver divergência de conceito de TMA/MTTR na operação, padronizar as fontes e documentar.
+
+### 9.3 SLA em risco
+`slam_risco = 1` quando o ticket ainda não está fechado e o `time_to_resolve` vence em até 120 minutos (regra ajustável).
+
+---
+
+## 10) Substituição de funções legadas (fc_*)
+
+Este ETL não depende de funções customizadas do banco antigo (fc_*). As substituições são feitas por JOINs diretos, com regras determinísticas.
+
+### 10.1 Nome de usuário
+- `glpi_users` (`firstname`, `realname`, fallback `name`)
+
+### 10.2 Técnico atribuído
+- `glpi_tickets_users` com `type = 2` + `glpi_users`
+- Regra atual: menor `users_id` (determinística) se houver múltiplos
+
+### 10.3 Grupo solucionador
+- `glpi_groups_tickets` com `type = 2` + `glpi_groups`
+- Regra atual: menor `groups_id` (determinística) se houver múltiplos
+
+### 10.4 Tags (plugin Tag)
+- `glpi_plugin_tag_tagitems` + `glpi_plugin_tag_tags`
+- Agrega em string via `GROUP_CONCAT`
+
+---
+
+## 11) Tabelas de controle e locks
+
+### 11.1 Checkpoint
+Tabela: `dw_glpi.etl_checkpoint`  
+- `entity_name` (ex.: `tickets`)
+- `last_success_at` (UTC)
+
+### 11.2 Lock de concorrência
+A execução deve impedir concorrência (duas execuções simultâneas).  
+Implementação sugerida: `GET_LOCK()` no MySQL destino.
+
+---
+
+## 12) Troubleshooting
+
+### 12.1 `Failed opening required ...`
+Causa comum: typo no nome do arquivo/classe (ex.: `TricketsLoader.php`).  
+Valide a árvore:
+```bash
+find /data/etl-glpi-metabase/src -type f | sort
+```
+
+### 12.2 `SQLSTATE[HY093]: Invalid parameter number`
+Causa: placeholders e parâmetros do `execute()` não batem.  
+Correção recomendada: usar placeholders posicionais `?` e array posicional no `execute()`.
+
+### 12.3 `could not find driver`
+Falta `pdo_mysql`:
+```bash
+dnf -y install php-mysqlnd php-pdo
+php -m | grep -i pdo_mysql
+```
+
+### 12.4 Sem dados carregados
+- Verifique o checkpoint:
+```sql
+SELECT * FROM dw_glpi.etl_checkpoint;
+```
+- Verifique contagem na origem:
+```sql
+SELECT COUNT(*) FROM glpi.glpi_tickets WHERE is_deleted=0;
+```
+
+---
+
+## 13) Roadmap (próximas entregas)
+
+- Implementar entidades:
+  - `metabase_mudancas` (`glpi_changes*`)
+  - `metabase_problemas` (`glpi_problems*`)
+  - `metabase_usuarios` (`glpi_users`)
+  - `metabase_grupos` (`glpi_groups`)
+- Reaberturas via `glpi_logs` (depende de confirmação do schema)
+- Snapshot diário do backlog para evolução histórica perfeita (KPI 48)
+
+---
+
+## 14) Operação e boas práticas
+
+- Execute o ETL com usuário de serviço (não root) quando possível
+- Restrinja permissões do MySQL do usuário do ETL ao mínimo necessário
+- Faça backup do DW (ou pelo menos das tabelas `metabase_*` e checkpoints)
+- Monitore duração e falhas via logs e alertas (ex.: grep de `ERROR`)
 

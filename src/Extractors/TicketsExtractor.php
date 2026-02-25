@@ -6,18 +6,22 @@ final class TicketsExtractor {
       FROM glpi_tickets
       WHERE is_deleted = 0
         AND (
-          date_mod >= :last
-          OR `date` >= :full
-          OR solvedate >= :full
-          OR closedate >= :full
+          date_mod >= ?
+          OR `date` >= ?
+          OR solvedate >= ?
+          OR closedate >= ?
         )
     ";
     $st = $src->prepare($sql);
-    $st->execute([':last' => $lastUtc, ':full' => $fullStartUtc]);
+    $st->execute([$lastUtc, $fullStartUtc, $fullStartUtc, $fullStartUtc]);
     return array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
   }
 
   public static function fetchDetailsByIds(PDO $src, array $ids): PDOStatement {
+    if (!$ids) {
+      throw new RuntimeException("Lista de IDs vazia em fetchDetailsByIds()");
+    }
+
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
     $sql = "
@@ -47,13 +51,13 @@ final class TicketsExtractor {
 
         CASE
           WHEN t.time_to_resolve IS NULL AND t.time_to_own IS NULL THEN 'SEM SLA'
-          WHEN t.status <> 6 AND t.time_to_resolve IS NOT NULL AND UTC_TIMESTAMP() > t.time_to_resolve THEN 'SLA FORA DO PRAZO'
+          WHEN t.status &lt;> 6 AND t.time_to_resolve IS NOT NULL AND UTC_TIMESTAMP() > t.time_to_resolve THEN 'SLA FORA DO PRAZO'
           WHEN (t.time_to_resolve IS NOT NULL AND t.solvedate IS NOT NULL AND t.solvedate > t.time_to_resolve) THEN 'SLA FORA DO PRAZO'
           WHEN (
-            t.status <> 6
+            t.status &lt;> 6
             AND t.time_to_resolve IS NOT NULL
-            AND UTC_TIMESTAMP() <= t.time_to_resolve
-            AND TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), t.time_to_resolve) <= 120
+            AND UTC_TIMESTAMP() &lt;= t.time_to_resolve
+            AND TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), t.time_to_resolve) &lt;= 120
           ) THEN 'SLA EM RISCO'
           ELSE 'SLA NO PRAZO'
         END AS status_sla,
@@ -62,21 +66,21 @@ final class TicketsExtractor {
         t.time_to_own AS limite_atendimento,
 
         CASE
-          WHEN t.status <> 6
+          WHEN t.status &lt;> 6
            AND t.time_to_resolve IS NOT NULL
-           AND UTC_TIMESTAMP() <= t.time_to_resolve
-           AND TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), t.time_to_resolve) <= 120
+           AND UTC_TIMESTAMP() &lt;= t.time_to_resolve
+           AND TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), t.time_to_resolve) &lt;= 120
           THEN 1 ELSE 0
         END AS sla_risco,
 
         CASE
           WHEN t.time_to_own IS NULL OR t.takeintoaccountdate IS NULL THEN NULL
-          WHEN t.takeintoaccountdate <= t.time_to_own THEN 1 ELSE 0
+          WHEN t.takeintoaccountdate &lt;= t.time_to_own THEN 1 ELSE 0
         END AS sla_atendimento_ok,
 
         CASE
           WHEN t.time_to_resolve IS NULL OR t.solvedate IS NULL THEN NULL
-          WHEN t.solvedate <= t.time_to_resolve THEN 1 ELSE 0
+          WHEN t.solvedate &lt;= t.time_to_resolve THEN 1 ELSE 0
         END AS sla_solucao_ok,
 
         CASE WHEN t.takeintoaccountdate IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, t.date, t.takeintoaccountdate) END AS tma_minutos,
@@ -93,7 +97,20 @@ final class TicketsExtractor {
 
         ic.completename AS servico_completo,
 
+        -- Quebra do catálogo completo em 3 blocos
+        SUBSTRING_INDEX(ic.completename, ' > ', 1) AS categoria,
+        SUBSTRING_INDEX(SUBSTRING_INDEX(ic.completename, ' > ', 2), ' > ', -1) AS subcategoria,
+        SUBSTRING_INDEX(ic.completename, ' > ', -1) AS servico,
+
         gsol.name AS grupo_solucionador,
+
+        -- Código do grupo solucionador
+        gsol.id AS id_grupo_solucionador,
+
+        -- Quebra do grupo solucionador em 3 blocos
+        SUBSTRING_INDEX(gsol.name, ' > ', 1) AS tipo_atividade,
+        SUBSTRING_INDEX(SUBSTRING_INDEX(gsol.name, ' > ', 2), ' > ', -1) AS tipo_contrato,
+        SUBSTRING_INDEX(gsol.name, ' > ', -1) AS grupo_solucao,
 
         COALESCE(NULLIF(TRIM(CONCAT(IFNULL(utech.firstname,''),' ',IFNULL(utech.realname,''))),''), utech.name) AS agente_solucionador,
 
@@ -110,7 +127,7 @@ final class TicketsExtractor {
         CASE WHEN ttsk.total_actiontime_seg IS NOT NULL THEN (ttsk.total_actiontime_seg/3600) END AS tempo_total_lancados,
 
         CASE WHEN tu1.users_id IS NOT NULL THEN 1 ELSE 0 END AS tem_tecnico_atribuido,
-        CASE WHEN t.priority IS NOT NULL AND t.priority <> 0 THEN 1 ELSE 0 END AS tem_prioridade,
+        CASE WHEN t.priority IS NOT NULL AND t.priority &lt;> 0 THEN 1 ELSE 0 END AS tem_prioridade,
 
         tagg.tags AS tags,
 
