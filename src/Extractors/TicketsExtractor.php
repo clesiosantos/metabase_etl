@@ -51,13 +51,13 @@ final class TicketsExtractor {
 
         CASE
           WHEN t.time_to_resolve IS NULL AND t.time_to_own IS NULL THEN 'SEM SLA'
-          WHEN t.status &lt;> 6 AND t.time_to_resolve IS NOT NULL AND UTC_TIMESTAMP() > t.time_to_resolve THEN 'SLA FORA DO PRAZO'
+          WHEN t.status <> 6 AND t.time_to_resolve IS NOT NULL AND UTC_TIMESTAMP() > t.time_to_resolve THEN 'SLA FORA DO PRAZO'
           WHEN (t.time_to_resolve IS NOT NULL AND t.solvedate IS NOT NULL AND t.solvedate > t.time_to_resolve) THEN 'SLA FORA DO PRAZO'
           WHEN (
-            t.status &lt;> 6
+            t.status <> 6
             AND t.time_to_resolve IS NOT NULL
-            AND UTC_TIMESTAMP() &lt;= t.time_to_resolve
-            AND TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), t.time_to_resolve) &lt;= 120
+            AND UTC_TIMESTAMP() <= t.time_to_resolve
+            AND TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), t.time_to_resolve) <= 120
           ) THEN 'SLA EM RISCO'
           ELSE 'SLA NO PRAZO'
         END AS status_sla,
@@ -66,21 +66,21 @@ final class TicketsExtractor {
         t.time_to_own AS limite_atendimento,
 
         CASE
-          WHEN t.status &lt;> 6
+          WHEN t.status <> 6
            AND t.time_to_resolve IS NOT NULL
-           AND UTC_TIMESTAMP() &lt;= t.time_to_resolve
-           AND TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), t.time_to_resolve) &lt;= 120
+           AND UTC_TIMESTAMP() <= t.time_to_resolve
+           AND TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), t.time_to_resolve) <= 120
           THEN 1 ELSE 0
         END AS sla_risco,
 
         CASE
           WHEN t.time_to_own IS NULL OR t.takeintoaccountdate IS NULL THEN NULL
-          WHEN t.takeintoaccountdate &lt;= t.time_to_own THEN 1 ELSE 0
+          WHEN t.takeintoaccountdate <= t.time_to_own THEN 1 ELSE 0
         END AS sla_atendimento_ok,
 
         CASE
           WHEN t.time_to_resolve IS NULL OR t.solvedate IS NULL THEN NULL
-          WHEN t.solvedate &lt;= t.time_to_resolve THEN 1 ELSE 0
+          WHEN t.solvedate <= t.time_to_resolve THEN 1 ELSE 0
         END AS sla_solucao_ok,
 
         CASE WHEN t.takeintoaccountdate IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, t.date, t.takeintoaccountdate) END AS tma_minutos,
@@ -96,44 +96,32 @@ final class TicketsExtractor {
         (t.sla_waiting_duration/60) AS tempo_espera_minutos,
 
         ic.completename AS servico_completo,
-
-        -- Quebra do catálogo completo em 3 blocos
         SUBSTRING_INDEX(ic.completename, ' > ', 1) AS categoria,
         SUBSTRING_INDEX(SUBSTRING_INDEX(ic.completename, ' > ', 2), ' > ', -1) AS subcategoria,
         SUBSTRING_INDEX(ic.completename, ' > ', -1) AS servico,
 
         gsol.name AS grupo_solucionador,
-
-        -- Código do grupo solucionador
         gsol.id AS id_grupo_solucionador,
-
-        -- Quebra do grupo solucionador em 3 blocos
         SUBSTRING_INDEX(gsol.name, ' > ', 1) AS tipo_atividade,
         SUBSTRING_INDEX(SUBSTRING_INDEX(gsol.name, ' > ', 2), ' > ', -1) AS tipo_contrato,
         SUBSTRING_INDEX(gsol.name, ' > ', -1) AS grupo_solucao,
 
         COALESCE(NULLIF(TRIM(CONCAT(IFNULL(utech.firstname,''),' ',IFNULL(utech.realname,''))),''), utech.name) AS agente_solucionador,
-
         COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u_req.firstname,''),' ',IFNULL(u_req.realname,''))),''), u_req.name) AS nome_solicitante,
         COALESCE(NULLIF(TRIM(CONCAT(IFNULL(utech.firstname,''),' ',IFNULL(utech.realname,''))),''), utech.name) AS nome_tecnico_responsavel,
 
         e.name AS entidade_cliente,
         l.name AS localizacao_fisica,
-
         DATE_FORMAT(CASE WHEN DAY(t.date) >= 23 THEN t.date ELSE (t.date - INTERVAL 1 MONTH) END,'%Y-%m') AS periodo_avaliado,
-
+        NULL AS periodo,
         0 AS reaberturas,
-
         CASE WHEN ttsk.total_actiontime_seg IS NOT NULL THEN (ttsk.total_actiontime_seg/3600) END AS tempo_total_lancados,
-
         CASE WHEN tu1.users_id IS NOT NULL THEN 1 ELSE 0 END AS tem_tecnico_atribuido,
-        CASE WHEN t.priority IS NOT NULL AND t.priority &lt;> 0 THEN 1 ELSE 0 END AS tem_prioridade,
-
+        CASE WHEN t.priority IS NOT NULL AND t.priority <> 0 THEN 1 ELSE 0 END AS tem_prioridade,
+        0 AS incidente_recorrente,
         tagg.tags AS tags,
-
         t.users_id_recipient,
         t.locations_id,
-
         UTC_TIMESTAMP() AS data_carga
 
       FROM glpi_tickets t
@@ -141,40 +129,13 @@ final class TicketsExtractor {
       LEFT JOIN glpi_entities e ON e.id = t.entities_id
       LEFT JOIN glpi_locations l ON l.id = t.locations_id
       LEFT JOIN glpi_users u_req ON u_req.id = t.users_id_recipient
-
-      LEFT JOIN (
-        SELECT tickets_id, MIN(groups_id) AS groups_id
-        FROM glpi_groups_tickets
-        WHERE type = 2
-        GROUP BY tickets_id
-      ) gt1 ON gt1.tickets_id = t.id
+      LEFT JOIN (SELECT tickets_id, MIN(groups_id) AS groups_id FROM glpi_groups_tickets WHERE type = 2 GROUP BY tickets_id) gt1 ON gt1.tickets_id = t.id
       LEFT JOIN glpi_groups gsol ON gsol.id = gt1.groups_id
-
-      LEFT JOIN (
-        SELECT tickets_id, MIN(users_id) AS users_id
-        FROM glpi_tickets_users
-        WHERE type = 2
-        GROUP BY tickets_id
-      ) tu1 ON tu1.tickets_id = t.id
+      LEFT JOIN (SELECT tickets_id, MIN(users_id) AS users_id FROM glpi_tickets_users WHERE type = 2 GROUP BY tickets_id) tu1 ON tu1.tickets_id = t.id
       LEFT JOIN glpi_users utech ON utech.id = tu1.users_id
-
-      LEFT JOIN (
-        SELECT tickets_id, SUM(COALESCE(actiontime,0)) AS total_actiontime_seg
-        FROM glpi_tickettasks
-        GROUP BY tickets_id
-      ) ttsk ON ttsk.tickets_id = t.id
-
-      LEFT JOIN (
-        SELECT ti.items_id AS ticket_id,
-               GROUP_CONCAT(tg.name ORDER BY tg.name SEPARATOR ', ') AS tags
-        FROM glpi_plugin_tag_tagitems ti
-        JOIN glpi_plugin_tag_tags tg ON tg.id = ti.plugin_tag_tags_id
-        WHERE ti.itemtype = 'Ticket' AND tg.is_active = 1
-        GROUP BY ti.items_id
-      ) tagg ON tagg.ticket_id = t.id
-
-      WHERE t.is_deleted = 0
-        AND t.id IN ($placeholders)
+      LEFT JOIN (SELECT tickets_id, SUM(COALESCE(actiontime,0)) AS total_actiontime_seg FROM glpi_tickettasks GROUP BY tickets_id) ttsk ON ttsk.tickets_id = t.id
+      LEFT JOIN (SELECT ti.items_id AS ticket_id, GROUP_CONCAT(tg.name ORDER BY tg.name SEPARATOR ', ') AS tags FROM glpi_plugin_tag_tagitems ti JOIN glpi_plugin_tag_tags tg ON tg.id = ti.plugin_tag_tags_id WHERE ti.itemtype = 'Ticket' AND tg.is_active = 1 GROUP BY ti.items_id) tagg ON tagg.ticket_id = t.id
+      WHERE t.is_deleted = 0 AND t.id IN ($placeholders)
     ";
 
     $st = $src->prepare($sql);
