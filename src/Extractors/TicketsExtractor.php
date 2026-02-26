@@ -34,6 +34,7 @@ final class TicketsExtractor {
         t.solvedate AS data_solucao,
         t.closedate AS data_fechamento,
         t.date_mod AS data_ultima_atualizacao,
+        DATE(t.date) AS data_id,
 
         CASE t.status
           WHEN 1 THEN 'Novo'
@@ -100,12 +101,9 @@ final class TicketsExtractor {
         SUBSTRING_INDEX(SUBSTRING_INDEX(ic.completename, ' > ', 2), ' > ', -1) AS subcategoria,
         SUBSTRING_INDEX(ic.completename, ' > ', -1) AS servico,
 
-        /* Grupo solucionador */
         gsol.completename AS grupo_solucionador,
         gsol.name AS grupo_solucionador_nome,
         gsol.id AS id_grupo_solucionador,
-
-        /* Quebra correta do completename */
         SUBSTRING_INDEX(gsol.completename, ' > ', 1) AS tipo_contrato,
         SUBSTRING_INDEX(SUBSTRING_INDEX(gsol.completename, ' > ', 2), ' > ', -1) AS grupo_solucao,
         SUBSTRING_INDEX(gsol.completename, ' > ', -1) AS tipo_atividade,
@@ -116,9 +114,6 @@ final class TicketsExtractor {
 
         e.name AS entidade_cliente,
         l.name AS localizacao_fisica,
-
-        DATE_FORMAT(CASE WHEN DAY(t.date) >= 23 THEN t.date ELSE (t.date - INTERVAL 1 MONTH) END,'%Y-%m') AS periodo_avaliado,
-        NULL AS periodo,
 
         0 AS reaberturas,
 

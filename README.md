@@ -290,3 +290,166 @@ SELECT COUNT(*) FROM glpi.glpi_tickets WHERE is_deleted=0;
 - Faça backup do DW (ou pelo menos das tabelas `metabase_*` e checkpoints)
 - Monitore duração e falhas via logs e alertas (ex.: grep de `ERROR`)
 
+## 15) Dicionário de dados (DW) e relacionamentos no Metabase
+
+Esta seção documenta o **dicionário de dados** das tabelas consumidas pelo Metabase e como elas se **relacionam**. A intenção é:
+
+- facilitar a criação de perguntas (cards) no Metabase sem “adivinhar” colunas
+- padronizar conceitos (ex.: o que é “grupo”, o que é “catálogo”)
+- orientar filtros e segmentações (cliente, torre, contrato, fila)
+- reduzir divergências de interpretação entre times (operação/BI)
+
+### 15.1 Convenções gerais
+
+- **Chave primária (PK)** em `metabase_tickets`: `chamado` (ID do ticket no GLPI).
+- Datas são carregadas como `DATETIME`. O ETL opera em **UTC** e registra `data_carga` em UTC.
+- Colunas “derivadas” (tempo/SLA/flags) são **materializadas** para performance no Metabase.
+
+### 15.2 Tabela principal: `dw_glpi.metabase_tickets`
+
+A tabela `metabase_tickets` é a **fato central** para análise operacional e de SLA.
+
+#### 15.2.1 Identificação do ticket
+- `chamado` (INT, PK): ID do ticket no GLPI.
+- `titulo_chamado` (VARCHAR): título do ticket (`glpi_tickets.name`).
+- `tipo_chamado` (VARCHAR): derivado de `glpi_tickets.type`:
+  - `1` → Incidente
+  - `2` → Requisição
+
+#### 15.2.2 Datas do ticket (linha do tempo)
+- `data_criacao`: criação (`glpi_tickets.date`)
+- `data_ultima_atualizacao`: última modificação (`glpi_tickets.date_mod`)
+- `data_solucao`: solução (`glpi_tickets.solvedate`)
+- `data_fechamento`: fechamento (`glpi_tickets.closedate`)
+
+Uso no Metabase:
+- backlog: `data_criacao` + `status_chamado`
+- aging: `aging_minutos` (materializado)
+- fluxo: `data_solucao`/`data_fechamento` por período
+
+#### 15.2.3 Status e prioridade
+- `status_chamado`: status textual normalizado (Novo, Pendente, Solucionado, Fechado etc.)
+- `prioridade`, `urgencia`, `impacto`: valores do GLPI convertidos para texto
+
+#### 15.2.4 SLA e tempos (materializados)
+- `status_sla`: domínio normalizado (SEM SLA | SLA NO PRAZO | SLA EM RISCO | SLA FORA DO PRAZO)
+- `limite_solucao`: `glpi_tickets.time_to_resolve`
+- `limite_atendimento`: `glpi_tickets.time_to_own`
+- `sla_risco`: flag `1/0` indicando vencimento em até 120 minutos (regra ajustável)
+- `sla_atendimento_ok`: flag calculada (se houver limite e data de atendimento)
+- `sla_solucao_ok`: flag calculada (se houver limite e data de solução)
+
+Tempos (minutos/horas):
+- `tma_minutos`: tempo até primeiro atendimento (base: `takeintoaccountdate`)
+- `mttr_minutos`: tempo até solução (`solvedate - date`)
+- `aging_minutos`: tempo “vivo” do ticket (se fechado: `closedate - date`; senão: `NOW - date`)
+- `tempo_espera_minutos`: `sla_waiting_duration / 60`
+- `tempo_total_lancados`: soma de tarefas (`glpi_tickettasks.actiontime`) convertida para **horas**
+
+> Observação: esses tempos são calculados no ETL e gravados como valor final para acelerar o Metabase.
+
+#### 15.2.5 Catálogo (serviço) — coluna completa + 3 níveis
+Fonte principal: `glpi_itilcategories.completename`
+
+- `servico_completo`: caminho completo do catálogo  
+  Ex.: `Linux > Sistema Operacional > Alto Consumo De CPU (Consumo maior que 98%)`
+- `categoria`: 1º nível (ex.: `Linux`)
+- `subcategoria`: 2º nível (ex.: `Sistema Operacional`)
+- `servico`: 3º nível (ex.: `Alto Consumo De CPU...`)
+
+Relação entre colunas:
+- `servico_completo` é preservado para auditoria e drill-down.
+- `categoria/subcategoria/servico` são usados para filtros rápidos no Metabase.
+
+#### 15.2.6 Grupo solucionador (torre/fila) — completename + name + 3 níveis
+Fonte principal: `glpi_groups` (via relacionamento ticket↔grupo no GLPI)
+
+- `id_grupo_solucionador`: ID do grupo (`glpi_groups.id`)
+- `grupo_solucionador`: **completename** do grupo (melhor para BI)  
+  Ex.: `Assistencia > MSP > NOC`
+- `grupo_solucionador_nome`: **name** do grupo (nome curto do nível folha)  
+  Ex.: `NOC`
+
+Quebra do grupo (baseada em `grupo_solucionador` / completename):
+- `tipo_contrato`: 1º nível (ex.: `Assistencia`)
+- `grupo_solucao`: 2º nível (ex.: `MSP`)
+- `tipo_atividade`: 3º nível (ex.: `NOC`)
+
+Uso no Metabase (sugestões):
+- Filtro “Contrato/Tipo de Contrato”: `tipo_contrato`
+- Filtro “Grupo/Torre”: `grupo_solucao`
+- Filtro “Fila”: `tipo_atividade` ou `grupo_solucionador_nome`
+- Drill-down hierárquico: `grupo_solucionador` (completename)
+
+> Importante: a hierarquia de grupo é do GLPI (tabela `glpi_groups.completename`). O ETL materializa os 3 níveis para facilitar filtros.
+
+#### 15.2.7 Pessoas e contexto
+- `nome_solicitante`: solicitante (derivado de `users_id_recipient`)
+- `nome_tecnico_responsavel` / `agente_solucionador`: técnico atribuído (regra determinística no ETL)
+- `entidade_cliente`: entidade do GLPI (cliente/contrato)
+- `localizacao_fisica`: localização
+- `tags`: tags do plugin Tag (`GROUP_CONCAT`)
+
+IDs úteis para relacionamentos futuros:
+- `users_id_recipient`
+- `locations_id`
+
+#### 15.2.8 Auditoria
+- `data_carga`: timestamp em que a linha foi escrita/atualizada no DW
+
+### 15.3 Relacionamentos no Metabase (recomendação prática)
+
+Mesmo sem chaves estrangeiras físicas no MySQL, no Metabase você pode modelar relações lógicas.
+
+Relações recomendadas:
+- `metabase_tickets.chamado` = “chave do ticket”
+- `metabase_tickets.id_grupo_solucionador` → (futuro) dimensão `metabase_grupos.grupo_id`
+- `metabase_tickets.users_id_recipient` → (futuro) dimensão `metabase_usuarios.users_id`
+- `metabase_tickets.locations_id` → (futuro) dimensão `metabase_localizacoes.location_id` (se você criar)
+
+> Como estamos começando por tickets, as dimensões `metabase_grupos` e `metabase_usuarios` são recomendadas no roadmap para enriquecer filtros e permitir joins nativos no Metabase.
+
+### 15.4 Dicionário de dados (campos “novos” adicionados nesta fase)
+
+Campos novos (catálogo):
+- `categoria`
+- `subcategoria`
+- `servico`
+
+Campos novos (grupo):
+- `grupo_solucionador_nome`
+- `tipo_contrato`
+- `grupo_solucao`
+- `tipo_atividade`
+
+Esses campos são alimentados pelo ETL a partir de:
+- Catálogo: `glpi_itilcategories.completename`
+- Grupo: `glpi_groups.completename` e `glpi_groups.name`
+
+### 15.5 Sanity checks (validação de dados)
+
+Após uma carga full, execute estas validações no DW:
+
+1) Preenchimento das colunas novas:
+```sql
+SELECT
+  COUNT(*) AS total,
+  SUM(categoria IS NOT NULL AND categoria <> '') AS categoria_ok,
+  SUM(subcategoria IS NOT NULL AND subcategoria <> '') AS subcategoria_ok,
+  SUM(servico IS NOT NULL AND servico <> '') AS servico_ok,
+  SUM(grupo_solucionador IS NOT NULL AND grupo_solucionador <> '') AS grupo_completename_ok,
+  SUM(grupo_solucionador_nome IS NOT NULL AND grupo_solucionador_nome <> '') AS grupo_name_ok,
+  SUM(id_grupo_solucionador IS NOT NULL) AS grupo_id_ok,
+  SUM(tipo_contrato IS NOT NULL AND tipo_contrato <> '') AS tipo_contrato_ok,
+  SUM(grupo_solucao IS NOT NULL AND grupo_solucao <> '') AS grupo_solucao_ok,
+  SUM(tipo_atividade IS NOT NULL AND tipo_atividade <> '') AS tipo_atividade_ok
+FROM metabase_tickets;
+
+
+Ajuste Imediato: Mude o cálculo de periodo_avaliado para DATE_FORMAT(t.date, '%Y-%m') no TicketsExtractor.php.
+Solução Definitiva (Recomendada):
+
+Crie e popule a tabela dim_calendario.
+Altere a metabase_tickets para incluir a coluna data_id.
+Ajuste o TicketsExtractor.php para selecionar DATE(t.date) AS data_id.
+Ajuste o TicketsLoader.php para carregar o novo campo data_id.

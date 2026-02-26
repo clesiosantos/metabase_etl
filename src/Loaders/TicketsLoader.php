@@ -4,7 +4,7 @@ final class TicketsLoader {
     $sql = "
       INSERT INTO metabase_tickets (
         chamado, titulo_chamado, tipo_chamado,
-        data_criacao, data_solucao, data_fechamento, data_ultima_atualizacao,
+        data_criacao, data_solucao, data_fechamento, data_ultima_atualizacao, data_id,
         status_chamado, prioridade, urgencia, impacto,
         status_sla, limite_solucao, limite_atendimento,
         sla_risco, sla_atendimento_ok, sla_solucao_ok,
@@ -18,13 +18,12 @@ final class TicketsLoader {
 
         agente_solucionador, nome_solicitante, nome_tecnico_responsavel,
         entidade_cliente, localizacao_fisica,
-        periodo_avaliado, periodo,
 
         reaberturas, tempo_total_lancados, tem_tecnico_atribuido, tem_prioridade,
         incidente_recorrente, tags, users_id_recipient, locations_id, data_carga
       ) VALUES (
         :chamado, :titulo_chamado, :tipo_chamado,
-        :data_criacao, :data_solucao, :data_fechamento, :data_ultima_atualizacao,
+        :data_criacao, :data_solucao, :data_fechamento, :data_ultima_atualizacao, :data_id,
         :status_chamado, :prioridade, :urgencia, :impacto,
         :status_sla, :limite_solucao, :limite_atendimento,
         :sla_risco, :sla_atendimento_ok, :sla_solucao_ok,
@@ -38,7 +37,6 @@ final class TicketsLoader {
 
         :agente_solucionador, :nome_solicitante, :nome_tecnico_responsavel,
         :entidade_cliente, :localizacao_fisica,
-        :periodo_avaliado, :periodo,
 
         :reaberturas, :tempo_total_lancados, :tem_tecnico_atribuido, :tem_prioridade,
         :incidente_recorrente, :tags, :users_id_recipient, :locations_id, :data_carga
@@ -50,6 +48,7 @@ final class TicketsLoader {
         data_solucao=VALUES(data_solucao),
         data_fechamento=VALUES(data_fechamento),
         data_ultima_atualizacao=VALUES(data_ultima_atualizacao),
+        data_id=VALUES(data_id),
         status_chamado=VALUES(status_chamado),
         prioridade=VALUES(prioridade),
         urgencia=VALUES(urgencia),
@@ -74,7 +73,6 @@ final class TicketsLoader {
         grupo_solucionador=VALUES(grupo_solucionador),
         grupo_solucionador_nome=VALUES(grupo_solucionador_nome),
         id_grupo_solucionador=VALUES(id_grupo_solucionador),
-
         tipo_contrato=VALUES(tipo_contrato),
         grupo_solucao=VALUES(grupo_solucao),
         tipo_atividade=VALUES(tipo_atividade),
@@ -84,8 +82,6 @@ final class TicketsLoader {
         nome_tecnico_responsavel=VALUES(nome_tecnico_responsavel),
         entidade_cliente=VALUES(entidade_cliente),
         localizacao_fisica=VALUES(localizacao_fisica),
-        periodo_avaliado=VALUES(periodo_avaliado),
-        periodo=VALUES(periodo),
 
         reaberturas=VALUES(reaberturas),
         tempo_total_lancados=VALUES(tempo_total_lancados),

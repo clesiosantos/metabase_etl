@@ -1,17 +1,29 @@
+/* =========================================================
+   RESET COMPLETO DO DW (CUIDADO: APAGA DADOS)
+   Alinhado com tabela calendário
+   ========================================================= */
+
 CREATE DATABASE IF NOT EXISTS dw_glpi
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
 USE dw_glpi;
 
+/* Drop views */
 DROP VIEW IF EXISTS v_tickets_ultimos_15_dias;
 DROP VIEW IF EXISTS v_tickets_sla_risco;
 DROP VIEW IF EXISTS v_tickets_abertos;
 
+/* Drop tables */
 DROP TABLE IF EXISTS metabase_tickets;
 DROP TABLE IF EXISTS etl_error;
 DROP TABLE IF EXISTS etl_run;
 DROP TABLE IF EXISTS etl_checkpoint;
+DROP TABLE IF EXISTS dim_calendario;
+
+/* =========================================================
+   Controle / Auditoria ETL
+   ========================================================= */
 
 CREATE TABLE etl_run (
   run_id BIGINT NOT NULL AUTO_INCREMENT,
@@ -50,6 +62,83 @@ CREATE TABLE etl_checkpoint (
   PRIMARY KEY (entity_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+/* =========================================================
+   Dimensão Calendário
+   ========================================================= */
+
+CREATE TABLE dim_calendario (
+    data DATE NOT NULL,
+    ano INT NOT NULL,
+    mes INT NOT NULL,
+    dia INT NOT NULL,
+    trimestre INT NOT NULL,
+    semana_do_ano INT NOT NULL,
+    dia_da_semana_num INT NOT NULL,
+    dia_da_semana_nome VARCHAR(20) NOT NULL,
+    mes_nome VARCHAR(20) NOT NULL,
+    ano_mes VARCHAR(7) NOT NULL,
+    eh_fim_de_semana TINYINT(1) NOT NULL,
+    PRIMARY KEY (data),
+    INDEX idx_cal_ano_mes (ano, mes),
+    INDEX idx_cal_ano_trimestre (ano, trimestre)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+/* Procedure para popular o calendário */
+DELIMITER $$
+
+CREATE PROCEDURE PopulateCalendar(IN start_date DATE, IN end_date DATE)
+BEGIN
+    DECLARE current_date DATE;
+    SET current_date = start_date;
+    WHILE current_date <= end_date DO
+        INSERT INTO dim_calendario (
+            data,
+            ano,
+            mes,
+            dia,
+            trimestre,
+            semana_do_ano,
+            dia_da_semana_num,
+            dia_da_semana_nome,
+            mes_nome,
+            ano_mes,
+            eh_fim_de_semana
+        ) VALUES (
+            current_date,
+            YEAR(current_date),
+            MONTH(current_date),
+            DAY(current_date),
+            QUARTER(current_date),
+            WEEKOFYEAR(current_date),
+            DAYOFWEEK(current_date),
+            CASE DAYOFWEEK(current_date)
+                WHEN 1 THEN 'Domingo'
+                WHEN 2 THEN 'Segunda-feira'
+                WHEN 3 THEN 'Terça-feira'
+                WHEN 4 THEN 'Quarta-feira'
+                WHEN 5 THEN 'Quinta-feira'
+                WHEN 6 THEN 'Sexta-feira'
+                WHEN 7 THEN 'Sábado'
+            END,
+            CASE MONTH(current_date)
+                WHEN 1 THEN 'Janeiro' WHEN 2 THEN 'Fevereiro' WHEN 3 THEN 'Março'
+                WHEN 4 THEN 'Abril' WHEN 5 THEN 'Maio' WHEN 6 THEN 'Junho'
+                WHEN 7 THEN 'Julho' WHEN 8 THEN 'Agosto' WHEN 9 THEN 'Setembro'
+                WHEN 10 THEN 'Outubro' WHEN 11 THEN 'Novembro' WHEN 12 THEN 'Dezembro'
+            END,
+            DATE_FORMAT(current_date, '%Y-%m'),
+            IF(DAYOFWEEK(current_date) IN (1, 7), 1, 0)
+        );
+        SET current_date = ADDDATE(current_date, INTERVAL 1 DAY);
+    END WHILE;
+END$$
+
+DELIMITER ;
+
+/* =========================================================
+   Fato: Tickets (com data_id para calendário)
+   ========================================================= */
+
 CREATE TABLE metabase_tickets (
   chamado INT NOT NULL,
 
@@ -60,6 +149,7 @@ CREATE TABLE metabase_tickets (
   data_solucao DATETIME NULL,
   data_fechamento DATETIME NULL,
   data_ultima_atualizacao DATETIME NULL,
+  data_id DATE NULL,
 
   status_chamado VARCHAR(30) NULL,
 
@@ -85,12 +175,9 @@ CREATE TABLE metabase_tickets (
   subcategoria VARCHAR(255) NULL,
   servico VARCHAR(255) NULL,
 
-  /* Grupo: completename (principal no Metabase) + name (curto) */
-  grupo_solucionador VARCHAR(255) NULL,         /* gsol.completename */
-  grupo_solucionador_nome VARCHAR(255) NULL,    /* gsol.name */
+  grupo_solucionador VARCHAR(255) NULL,
+  grupo_solucionador_nome VARCHAR(255) NULL,
   id_grupo_solucionador INT NULL,
-
-  /* Quebra do completename */
   tipo_contrato VARCHAR(255) NULL,
   grupo_solucao VARCHAR(255) NULL,
   tipo_atividade VARCHAR(255) NULL,
@@ -101,9 +188,6 @@ CREATE TABLE metabase_tickets (
 
   entidade_cliente VARCHAR(255) NULL,
   localizacao_fisica VARCHAR(255) NULL,
-
-  periodo_avaliado VARCHAR(20) NULL,
-  periodo VARCHAR(20) NULL,
 
   reaberturas INT NOT NULL DEFAULT 0,
   tempo_total_lancados DECIMAL(12,2) NULL,
@@ -122,14 +206,14 @@ CREATE TABLE metabase_tickets (
 
   INDEX idx_tickets_status (status_chamado),
   INDEX idx_tickets_cliente (entidade_cliente),
-
   INDEX idx_tickets_grupo (grupo_solucionador),
   INDEX idx_tickets_grupo_nome (grupo_solucionador_nome),
   INDEX idx_tickets_grupo_id (id_grupo_solucionador),
-
   INDEX idx_tickets_tecnico (nome_tecnico_responsavel),
+
   INDEX idx_tickets_datas (data_criacao, data_solucao, data_fechamento),
   INDEX idx_tickets_date_mod (data_ultima_atualizacao),
+  INDEX idx_tickets_data_id (data_id),
 
   INDEX idx_tickets_sla (status_sla, sla_risco, limite_solucao),
   INDEX idx_tickets_aging (aging_minutos),
@@ -137,6 +221,10 @@ CREATE TABLE metabase_tickets (
   INDEX idx_tickets_catalogo (categoria, subcategoria, servico),
   INDEX idx_tickets_data_carga (data_carga)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+/* =========================================================
+   Views (Metabase)
+   ========================================================= */
 
 CREATE VIEW v_tickets_abertos AS
 SELECT *
