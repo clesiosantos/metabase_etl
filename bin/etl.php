@@ -1,7 +1,7 @@
 <?php
 /**
  * Data: 26/02/2026
- * Versão: 1.0.2 (Revisada para incluir Changes e Problems)
+ * Versão: 1.0.2
  * Autor: 3P Systems — www.3psystems.com.br
  */
 
@@ -57,43 +57,28 @@ array_shift($args);
 $entity = $args[0] ?? null;
 $mode = in_array('--full', $args, true) ? 'full' : 'incremental';
 
-// Validação básica do modo
-if (!in_array($mode, ['incremental', 'full'])) {
-  fwrite(STDERR, "Modo inválido: {$mode}. Use 'incremental' ou 'full'.\n");
-  usage();
-  exit(1);
-}
-
 if (!$entity) {
   usage();
   exit(1);
 }
 
 $log = new Logger($CFG['etl']['log_file']);
-$log->info("Iniciando ETL para entidade: {$entity}, modo: {$mode}");
 
 // Conexões PDO via Db::pdo()
 $src = Db::pdo($CFG['source']);
 $dst = Db::pdo($CFG['target']);
 
-try {
-  switch ($entity) {
-    case 'tickets':
-      TicketsEtl::run($src, $dst, $log, $CFG, $mode);
-      break;
-    case 'changes':
-      ChangesJob::run($src, $dst, $mode, $CFG['etl']['window_full_days'] ?? 15, $CFG['etl']['batch_size'] ?? 1000);
-      break;
-    case 'problems':
-      ProblemsJob::run($src, $dst, $mode, $CFG['etl']['window_full_days'] ?? 15, $CFG['etl']['batch_size'] ?? 1000);
-      break;
-    default:
-      usage();
-      exit(1);
-  }
-  $log->info("ETL concluído com sucesso para entidade: {$entity}");
-} catch (Throwable $e) {
-  $log->error("Erro no ETL para entidade {$entity}: " . $e->getMessage());
-  fwrite(STDERR, $e->getMessage() . "\n");
-  exit(1);
+switch ($entity) {
+  case 'tickets':
+    TicketsEtl::run($src, $dst, $log, $CFG, $mode);
+    break;
+  case 'changes':
+    ChangesJob::run($src, $dst, $mode, $CFG['etl']['window_full_days'] ?? 15, $CFG['etl']['batch_size'] ?? 1000);
+    break;
+  case 'problems':
+    ProblemsJob::run($src, $dst, $mode, $CFG['etl']['window_full_days'] ?? 15, $CFG['etl']['batch_size'] ?? 1000);
+    break;
+  default:
+    usage();
+    exit(1);
 }

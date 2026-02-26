@@ -2,7 +2,7 @@
 final class ProblemsJob {
   public static function run(PDO $src, PDO $dst, string $mode, int $windowFullDays, int $batchSize): void {
     $entity = 'problems';
-    $runId = EtlRun::startRun($dst, $entity, $mode, $windowFullDays, $batchSize);
+    $runId = EtlRun::start($dst, $entity, $mode, $windowFullDays, $batchSize, ['metabase_problems']);
 
     try {
       $lastUtc = Checkpoint::getLastSuccessUtc($dst, $entity);
@@ -12,6 +12,7 @@ final class ProblemsJob {
 
       $ids = ProblemsExtractor::fetchChangedIds($src, $lastUtc, $lastUtc);
       $idsSelected = count($ids);
+      EtlRun::setSelected($dst, $runId, $idsSelected);
 
       $upsert = ProblemsLoader::upsertStatement($dst);
       $rowsUpserted = 0;
@@ -24,17 +25,18 @@ final class ProblemsJob {
           $bindRow = self::bindRow($row);
           $upsert->execute($bindRow);
           $rowsUpserted++;
+          EtlRun::addUpserted($dst, $runId, 1);
         }
       }
 
       $validation = Validator::validateRun($dst, 'metabase_problems', $rowsUpserted);
-      EtlRun::finishRunSuccess($dst, $runId, $validation, $idsSelected, $rowsUpserted);
+      EtlRun::finishSuccess($dst, $runId, $validation);
 
       Checkpoint::upsertCheckpointNow($dst, $entity);
 
     } catch (Throwable $e) {
       EtlError::logError($dst, $runId, $entity, $e->getMessage());
-      EtlRun::finishRunFailed($dst, $runId, $e->getMessage());
+      EtlRun::finishFailed($dst, $runId, $e->getMessage());
       throw $e;
     }
   }
