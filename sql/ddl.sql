@@ -1,43 +1,31 @@
-/* =========================================================
-   RESET COMPLETO DO DW (CUIDADO: APAGA DADOS)
-   GLPI 10 (origem) -> DW MySQL 8 (destino) para Metabase
-   Banco destino: dw_glpi
-   Charset: utf8mb4
-   ========================================================= */
-
--- 1) Cria o banco se não existir
 CREATE DATABASE IF NOT EXISTS dw_glpi
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
 USE dw_glpi;
 
--- 2) Derruba views primeiro (para não travar drop de tabela)
 DROP VIEW IF EXISTS v_tickets_ultimos_15_dias;
 DROP VIEW IF EXISTS v_tickets_sla_risco;
 DROP VIEW IF EXISTS v_tickets_abertos;
 
--- 3) Derruba tabelas (reset total)
 DROP TABLE IF EXISTS metabase_tickets;
 DROP TABLE IF EXISTS etl_error;
 DROP TABLE IF EXISTS etl_run;
 DROP TABLE IF EXISTS etl_checkpoint;
 
-/* =========================================================
-   Tabelas de controle/auditoria ETL
-   ========================================================= */
-
 CREATE TABLE etl_run (
   run_id BIGINT NOT NULL AUTO_INCREMENT,
   started_at DATETIME NOT NULL,
   finished_at DATETIME NULL,
-  status VARCHAR(20) NOT NULL,          -- RUNNING | SUCCESS | FAILED
-  mode VARCHAR(20) NOT NULL,            -- incremental | full
-  entity_name VARCHAR(50) NOT NULL,     -- tickets, changes, etc
+  status VARCHAR(20) NOT NULL,
+  mode VARCHAR(20) NOT NULL,
+  entity_name VARCHAR(50) NOT NULL,
   window_full_days INT NOT NULL DEFAULT 15,
   batch_size INT NOT NULL DEFAULT 1000,
-  rows_selected INT NOT NULL DEFAULT 0,
+  tables_updated VARCHAR(500) NULL,
+  ids_selected INT NOT NULL DEFAULT 0,
   rows_upserted INT NOT NULL DEFAULT 0,
+  validation_json JSON NULL,
   message TEXT NULL,
   PRIMARY KEY (run_id),
   INDEX idx_etl_run_entity (entity_name, started_at),
@@ -46,7 +34,7 @@ CREATE TABLE etl_run (
 
 CREATE TABLE etl_error (
   error_id BIGINT NOT NULL AUTO_INCREMENT,
-  run_id BIGINT NOT NULL,
+  run_id BIGINT NULL,
   error_at DATETIME NOT NULL,
   entity_name VARCHAR(50) NOT NULL,
   message TEXT NOT NULL,
@@ -61,10 +49,6 @@ CREATE TABLE etl_checkpoint (
   last_success_at DATETIME NOT NULL,
   PRIMARY KEY (entity_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-/* =========================================================
-   Fato: metabase_tickets (com colunas novas)
-   ========================================================= */
 
 CREATE TABLE metabase_tickets (
   chamado INT NOT NULL,
@@ -96,18 +80,20 @@ CREATE TABLE metabase_tickets (
   aging_minutos DECIMAL(12,2) NULL,
   tempo_espera_minutos DECIMAL(12,2) NULL,
 
-  /* Catálogo completo preservado + 3 colunas quebradas */
   servico_completo VARCHAR(255) NULL,
   categoria VARCHAR(255) NULL,
   subcategoria VARCHAR(255) NULL,
   servico VARCHAR(255) NULL,
 
-  /* Grupo solucionador: nome preservado + id + 3 colunas quebradas */
-  grupo_solucionador VARCHAR(255) NULL,
+  /* Grupo: completename (principal no Metabase) + name (curto) */
+  grupo_solucionador VARCHAR(255) NULL,         /* gsol.completename */
+  grupo_solucionador_nome VARCHAR(255) NULL,    /* gsol.name */
   id_grupo_solucionador INT NULL,
-  tipo_atividade VARCHAR(255) NULL,
+
+  /* Quebra do completename */
   tipo_contrato VARCHAR(255) NULL,
   grupo_solucao VARCHAR(255) NULL,
+  tipo_atividade VARCHAR(255) NULL,
 
   agente_solucionador VARCHAR(255) NULL,
   nome_solicitante VARCHAR(255) NULL,
@@ -136,10 +122,12 @@ CREATE TABLE metabase_tickets (
 
   INDEX idx_tickets_status (status_chamado),
   INDEX idx_tickets_cliente (entidade_cliente),
-  INDEX idx_tickets_grupo (grupo_solucionador),
-  INDEX idx_tickets_grupo_id (id_grupo_solucionador),
-  INDEX idx_tickets_tecnico (nome_tecnico_responsavel),
 
+  INDEX idx_tickets_grupo (grupo_solucionador),
+  INDEX idx_tickets_grupo_nome (grupo_solucionador_nome),
+  INDEX idx_tickets_grupo_id (id_grupo_solucionador),
+
+  INDEX idx_tickets_tecnico (nome_tecnico_responsavel),
   INDEX idx_tickets_datas (data_criacao, data_solucao, data_fechamento),
   INDEX idx_tickets_date_mod (data_ultima_atualizacao),
 
@@ -149,10 +137,6 @@ CREATE TABLE metabase_tickets (
   INDEX idx_tickets_catalogo (categoria, subcategoria, servico),
   INDEX idx_tickets_data_carga (data_carga)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-/* =========================================================
-   Views (Metabase)
-   ========================================================= */
 
 CREATE VIEW v_tickets_abertos AS
 SELECT *

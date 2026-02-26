@@ -100,11 +100,15 @@ final class TicketsExtractor {
         SUBSTRING_INDEX(SUBSTRING_INDEX(ic.completename, ' > ', 2), ' > ', -1) AS subcategoria,
         SUBSTRING_INDEX(ic.completename, ' > ', -1) AS servico,
 
-        gsol.name AS grupo_solucionador,
+        /* Grupo solucionador */
+        gsol.completename AS grupo_solucionador,
+        gsol.name AS grupo_solucionador_nome,
         gsol.id AS id_grupo_solucionador,
-        SUBSTRING_INDEX(gsol.name, ' > ', 1) AS tipo_atividade,
-        SUBSTRING_INDEX(SUBSTRING_INDEX(gsol.name, ' > ', 2), ' > ', -1) AS tipo_contrato,
-        SUBSTRING_INDEX(gsol.name, ' > ', -1) AS grupo_solucao,
+
+        /* Quebra correta do completename */
+        SUBSTRING_INDEX(gsol.completename, ' > ', 1) AS tipo_contrato,
+        SUBSTRING_INDEX(SUBSTRING_INDEX(gsol.completename, ' > ', 2), ' > ', -1) AS grupo_solucao,
+        SUBSTRING_INDEX(gsol.completename, ' > ', -1) AS tipo_atividade,
 
         COALESCE(NULLIF(TRIM(CONCAT(IFNULL(utech.firstname,''),' ',IFNULL(utech.realname,''))),''), utech.name) AS agente_solucionador,
         COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u_req.firstname,''),' ',IFNULL(u_req.realname,''))),''), u_req.name) AS nome_solicitante,
@@ -112,16 +116,24 @@ final class TicketsExtractor {
 
         e.name AS entidade_cliente,
         l.name AS localizacao_fisica,
+
         DATE_FORMAT(CASE WHEN DAY(t.date) >= 23 THEN t.date ELSE (t.date - INTERVAL 1 MONTH) END,'%Y-%m') AS periodo_avaliado,
         NULL AS periodo,
+
         0 AS reaberturas,
+
         CASE WHEN ttsk.total_actiontime_seg IS NOT NULL THEN (ttsk.total_actiontime_seg/3600) END AS tempo_total_lancados,
+
         CASE WHEN tu1.users_id IS NOT NULL THEN 1 ELSE 0 END AS tem_tecnico_atribuido,
         CASE WHEN t.priority IS NOT NULL AND t.priority <> 0 THEN 1 ELSE 0 END AS tem_prioridade,
+
         0 AS incidente_recorrente,
+
         tagg.tags AS tags,
+
         t.users_id_recipient,
         t.locations_id,
+
         UTC_TIMESTAMP() AS data_carga
 
       FROM glpi_tickets t
@@ -129,13 +141,40 @@ final class TicketsExtractor {
       LEFT JOIN glpi_entities e ON e.id = t.entities_id
       LEFT JOIN glpi_locations l ON l.id = t.locations_id
       LEFT JOIN glpi_users u_req ON u_req.id = t.users_id_recipient
-      LEFT JOIN (SELECT tickets_id, MIN(groups_id) AS groups_id FROM glpi_groups_tickets WHERE type = 2 GROUP BY tickets_id) gt1 ON gt1.tickets_id = t.id
+
+      LEFT JOIN (
+        SELECT tickets_id, MIN(groups_id) AS groups_id
+        FROM glpi_groups_tickets
+        WHERE type = 2
+        GROUP BY tickets_id
+      ) gt1 ON gt1.tickets_id = t.id
       LEFT JOIN glpi_groups gsol ON gsol.id = gt1.groups_id
-      LEFT JOIN (SELECT tickets_id, MIN(users_id) AS users_id FROM glpi_tickets_users WHERE type = 2 GROUP BY tickets_id) tu1 ON tu1.tickets_id = t.id
+
+      LEFT JOIN (
+        SELECT tickets_id, MIN(users_id) AS users_id
+        FROM glpi_tickets_users
+        WHERE type = 2
+        GROUP BY tickets_id
+      ) tu1 ON tu1.tickets_id = t.id
       LEFT JOIN glpi_users utech ON utech.id = tu1.users_id
-      LEFT JOIN (SELECT tickets_id, SUM(COALESCE(actiontime,0)) AS total_actiontime_seg FROM glpi_tickettasks GROUP BY tickets_id) ttsk ON ttsk.tickets_id = t.id
-      LEFT JOIN (SELECT ti.items_id AS ticket_id, GROUP_CONCAT(tg.name ORDER BY tg.name SEPARATOR ', ') AS tags FROM glpi_plugin_tag_tagitems ti JOIN glpi_plugin_tag_tags tg ON tg.id = ti.plugin_tag_tags_id WHERE ti.itemtype = 'Ticket' AND tg.is_active = 1 GROUP BY ti.items_id) tagg ON tagg.ticket_id = t.id
-      WHERE t.is_deleted = 0 AND t.id IN ($placeholders)
+
+      LEFT JOIN (
+        SELECT tickets_id, SUM(COALESCE(actiontime,0)) AS total_actiontime_seg
+        FROM glpi_tickettasks
+        GROUP BY tickets_id
+      ) ttsk ON ttsk.tickets_id = t.id
+
+      LEFT JOIN (
+        SELECT ti.items_id AS ticket_id,
+               GROUP_CONCAT(tg.name ORDER BY tg.name SEPARATOR ', ') AS tags
+        FROM glpi_plugin_tag_tagitems ti
+        JOIN glpi_plugin_tag_tags tg ON tg.id = ti.plugin_tag_tags_id
+        WHERE ti.itemtype = 'Ticket' AND tg.is_active = 1
+        GROUP BY ti.items_id
+      ) tagg ON tagg.ticket_id = t.id
+
+      WHERE t.is_deleted = 0
+        AND t.id IN ($placeholders)
     ";
 
     $st = $src->prepare($sql);
