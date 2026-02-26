@@ -50,6 +50,35 @@ final class TicketsExtractor {
         CAST(t.urgency AS CHAR) AS urgencia,
         CAST(t.impact AS CHAR) AS impacto,
 
+        -- SLA Atendimento (TTO)
+        CASE
+          WHEN t.time_to_own IS NULL THEN 'SEM SLA'
+          WHEN t.takeintoaccountdate IS NULL AND UTC_TIMESTAMP() > t.time_to_own THEN 'FORA DO PRAZO'
+          WHEN t.takeintoaccountdate IS NOT NULL AND t.takeintoaccountdate > t.time_to_own THEN 'FORA DO PRAZO'
+          WHEN t.takeintoaccountdate IS NULL AND TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), t.time_to_own) <= 120 THEN 'EM RISCO'
+          ELSE 'NO PRAZO'
+        END AS tto_status,
+
+        CASE
+          WHEN t.takeintoaccountdate IS NULL AND t.time_to_own IS NOT NULL AND UTC_TIMESTAMP() <= t.time_to_own AND TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), t.time_to_own) <= 120 THEN 1
+          ELSE 0
+        END AS tto_em_risco,
+
+        -- SLA Resolução (TTR)
+        CASE
+          WHEN t.time_to_resolve IS NULL THEN 'SEM SLA'
+          WHEN t.solvedate IS NULL AND UTC_TIMESTAMP() > t.time_to_resolve THEN 'FORA DO PRAZO'
+          WHEN t.solvedate IS NOT NULL AND t.solvedate > t.time_to_resolve THEN 'FORA DO PRAZO'
+          WHEN t.solvedate IS NULL AND TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), t.time_to_resolve) <= 120 THEN 'EM RISCO'
+          ELSE 'NO PRAZO'
+        END AS ttr_status,
+
+        CASE
+          WHEN t.solvedate IS NULL AND t.time_to_resolve IS NOT NULL AND UTC_TIMESTAMP() <= t.time_to_resolve AND TIMESTAMPDIFF(MINUTE, UTC_TIMESTAMP(), t.time_to_resolve) <= 120 THEN 1
+          ELSE 0
+        END AS ttr_em_risco,
+
+        -- Mantido para compatibilidade
         CASE
           WHEN t.time_to_resolve IS NULL AND t.time_to_own IS NULL THEN 'SEM SLA'
           WHEN t.status <> 6 AND t.time_to_resolve IS NOT NULL AND UTC_TIMESTAMP() > t.time_to_resolve THEN 'SLA FORA DO PRAZO'

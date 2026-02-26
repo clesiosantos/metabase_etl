@@ -1,10 +1,10 @@
 /* ============================================================
-   DW GLPI - DDL COMPLETO
+   DW GLPI - DDL COMPLETO (AJUSTADO PARA TTO/TTR)
    Banco: dw_glpi
    Inclui:
    - Auditoria ETL: etl_run, etl_error, etl_checkpoint
    - Calendário: dim_calendario (povoamento via CTE é separado)
-   - Fato Tickets: metabase_tickets
+   - Fato Tickets: metabase_tickets (com colunas TTO/TTR adicionadas)
    - Tags: dim_tags + bridge_ticket_tags
    - Views: v_tickets_abertos, v_tickets_sla_risco, v_tickets_ultimos_15_dias
    ============================================================ */
@@ -128,7 +128,7 @@ CREATE TABLE bridge_ticket_tags (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 /* ============================================================
-   4) Fato: Tickets (BI-ready)
+   4) Fato: Tickets (BI-ready) - COM COLUNAS TTO/TTR ADICIONADAS
    Observações:
    - grupo_solucionador = glpi_groups.completename
    - grupo_solucionador_nome = glpi_groups.name
@@ -157,6 +157,13 @@ CREATE TABLE metabase_tickets (
   impacto VARCHAR(30) NULL,
 
   status_sla VARCHAR(50) NULL,
+
+  /* NOVAS COLUNAS TTO/TTR */
+  tto_status VARCHAR(20) NULL,
+  ttr_status VARCHAR(20) NULL,
+  tto_em_risco TINYINT(1) NOT NULL DEFAULT 0,
+  ttr_em_risco TINYINT(1) NOT NULL DEFAULT 0,
+
   limite_solucao DATETIME NULL,
   limite_atendimento DATETIME NULL,
   sla_risco TINYINT(1) NOT NULL DEFAULT 0,
@@ -223,7 +230,13 @@ CREATE TABLE metabase_tickets (
   INDEX idx_tickets_aging (aging_minutos),
 
   INDEX idx_tickets_catalogo (categoria, subcategoria, servico),
-  INDEX idx_tickets_data_carga (data_carga)
+  INDEX idx_tickets_data_carga (data_carga),
+
+  /* ÍNDICES PARA NOVAS COLUNAS TTO/TTR */
+  INDEX idx_tickets_tto_status (tto_status),
+  INDEX idx_tickets_ttr_status (ttr_status),
+  INDEX idx_tickets_tto_em_risco (tto_em_risco),
+  INDEX idx_tickets_ttr_em_risco (ttr_em_risco)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 /* ============================================================
@@ -239,7 +252,9 @@ CREATE VIEW v_tickets_sla_risco AS
 SELECT *
 FROM metabase_tickets
 WHERE sla_risco = 1
-   OR status_sla = 'SLA FORA DO PRAZO';
+   OR status_sla = 'SLA FORA DO PRAZO'
+   OR tto_em_risco = 1
+   OR ttr_em_risco = 1;
 
 CREATE VIEW v_tickets_ultimos_15_dias AS
 SELECT *
