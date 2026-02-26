@@ -31,13 +31,13 @@ final class ProblemsExtractor {
         DATE(p.date) AS data_id,
 
         CASE p.status
-          WHEN 1 THEN 'Novo'
-          WHEN 2 THEN 'Processando atribuído'
-          WHEN 3 THEN 'Processando planejado'
-          WHEN 4 THEN 'Pendente'
-          WHEN 5 THEN 'Solucionado'
-          WHEN 6 THEN 'Fechado'
-          ELSE 'Outro'
+            WHEN 1 THEN 'Novo'
+            WHEN 2 THEN 'Em andamento'
+            WHEN 3 THEN 'Em planejamento'
+            WHEN 4 THEN 'Pendente'
+            WHEN 5 THEN 'Resolvido'
+            WHEN 6 THEN 'Fechado'
+            ELSE 'Outro'
         END AS status_chamado,
 
         CAST(p.priority AS CHAR) AS prioridade,

@@ -31,13 +31,19 @@ final class ChangesExtractor {
         DATE(c.date) AS data_id,
 
         CASE c.status
-          WHEN 1 THEN 'Novo'
-          WHEN 2 THEN 'Processando atribuído'
-          WHEN 3 THEN 'Processando planejado'
-          WHEN 4 THEN 'Pendente'
-          WHEN 5 THEN 'Solucionado'
-          WHEN 6 THEN 'Fechado'
-          ELSE 'Outro'
+            WHEN 1 THEN 'Novo'
+            WHEN 2 THEN 'Em avaliação'
+            WHEN 3 THEN 'Em aprovação'
+            WHEN 4 THEN 'Aceita'
+            WHEN 5 THEN 'Pendente'
+            WHEN 6 THEN 'Em teste'
+            WHEN 7 THEN 'Qualificação'
+            WHEN 8 THEN 'Aplicada'
+            WHEN 9 THEN 'Revisão'
+            WHEN 10 THEN 'Fechada'
+            WHEN 11 THEN 'Cancelada'
+            WHEN 12 THEN 'Recusada'
+            ELSE 'Outro'
         END AS status_chamado,
 
         CAST(c.priority AS CHAR) AS prioridade,
