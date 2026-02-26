@@ -40,11 +40,13 @@ final class ProblemsJob {
         'file' => $e->getFile(),
         'line' => $e->getLine(),
       ]);
+
       EtlRun::finishFailed($dst, $runId, $e->getMessage(), [
         'exception_class' => get_class($e),
         'file' => $e->getFile(),
         'line' => $e->getLine(),
       ]);
+
       throw $e;
     }
   }
@@ -107,18 +109,28 @@ final class ProblemsJob {
       'ttr_status_distribution' => [],
     ];
 
-    foreach (['data_id', 'entidade_cliente'] as $col) {
-      $st = $dst->query("
-        SELECT
-          COUNT(*) AS total,
-          SUM(CASE WHEN {$col} IS NULL OR {$col} = '' THEN 1 ELSE 0 END) AS nulls
-        FROM metabase_problems
-      ");
-      $r = $st->fetch(PDO::FETCH_ASSOC);
-      $total = (int)($r['total'] ?? 0);
-      $nulls = (int)($r['nulls'] ?? 0);
-      $out['null_rates'][$col] = $total > 0 ? round(100 * $nulls / $total, 2) : null;
-    }
+    // data_id é DATE: checar somente NULL
+    $st = $dst->query("
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN data_id IS NULL THEN 1 ELSE 0 END) AS nulls
+      FROM metabase_problems
+    ");
+    $r = $st->fetch(PDO::FETCH_ASSOC);
+    $total = (int)($r['total'] ?? 0);
+    $nulls = (int)($r['nulls'] ?? 0);
+    $out['null_rates']['data_id'] = $total > 0 ? round(100 * $nulls / $total, 2) : null;
+
+    $st = $dst->query("
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN entidade_cliente IS NULL OR entidade_cliente = '' THEN 1 ELSE 0 END) AS nulls
+      FROM metabase_problems
+    ");
+    $r = $st->fetch(PDO::FETCH_ASSOC);
+    $total = (int)($r['total'] ?? 0);
+    $nulls = (int)($r['nulls'] ?? 0);
+    $out['null_rates']['entidade_cliente'] = $total > 0 ? round(100 * $nulls / $total, 2) : null;
 
     $st = $dst->query("
       SELECT ttr_status, COUNT(*) AS qtd

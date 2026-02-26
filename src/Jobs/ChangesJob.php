@@ -32,7 +32,7 @@ final class ChangesJob {
       $validation = self::validate($dst);
       EtlRun::finishSuccess($dst, $runId, $validation, 'OK');
 
-      // checkpoint gravado com hora UTC da aplicação (timezone já está UTC no bin/etl.php)
+      // Persistir checkpoint como UTC
       Checkpoint::set($dst, $entity, gmdate('Y-m-d H:i:s'));
 
     } catch (Throwable $e) {
@@ -41,11 +41,13 @@ final class ChangesJob {
         'file' => $e->getFile(),
         'line' => $e->getLine(),
       ]);
+
       EtlRun::finishFailed($dst, $runId, $e->getMessage(), [
         'exception_class' => get_class($e),
         'file' => $e->getFile(),
         'line' => $e->getLine(),
       ]);
+
       throw $e;
     }
   }
@@ -101,8 +103,6 @@ final class ChangesJob {
   }
 
   private static function validate(PDO $dst): array {
-    // Validação simples e barata (não depende do Validator.php existente)
-    // Você pode enriquecer depois no padrão do seu Validator.
     $out = [
       'table' => 'metabase_changes',
       'checked_at' => gmdate('Y-m-d H:i:s'),
@@ -110,21 +110,31 @@ final class ChangesJob {
       'ttr_status_distribution' => [],
     ];
 
-    // null rate (data_id, entidade_cliente)
-    foreach (['data_id', 'entidade_cliente'] as $col) {
-      $st = $dst->query("
-        SELECT
-          COUNT(*) AS total,
-          SUM(CASE WHEN {$col} IS NULL OR {$col} = '' THEN 1 ELSE 0 END) AS nulls
-        FROM metabase_changes
-      ");
-      $r = $st->fetch(PDO::FETCH_ASSOC);
-      $total = (int)($r['total'] ?? 0);
-      $nulls = (int)($r['nulls'] ?? 0);
-      $out['null_rates'][$col] = $total > 0 ? round(100 * $nulls / $total, 2) : null;
-    }
+    // data_id é DATE: checar somente NULL (não comparar com '')
+    $st = $dst->query("
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN data_id IS NULL THEN 1 ELSE 0 END) AS nulls
+      FROM metabase_changes
+    ");
+    $r = $st->fetch(PDO::FETCH_ASSOC);
+    $total = (int)($r['total'] ?? 0);
+    $nulls = (int)($r['nulls'] ?? 0);
+    $out['null_rates']['data_id'] = $total > 0 ? round(100 * $nulls / $total, 2) : null;
 
-    // distribuição de ttr_status
+    // entidade_cliente é texto: pode validar '' sem erro
+    $st = $dst->query("
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN entidade_cliente IS NULL OR entidade_cliente = '' THEN 1 ELSE 0 END) AS nulls
+      FROM metabase_changes
+    ");
+    $r = $st->fetch(PDO::FETCH_ASSOC);
+    $total = (int)($r['total'] ?? 0);
+    $nulls = (int)($r['nulls'] ?? 0);
+    $out['null_rates']['entidade_cliente'] = $total > 0 ? round(100 * $nulls / $total, 2) : null;
+
+    // Distribuição de SLA
     $st = $dst->query("
       SELECT ttr_status, COUNT(*) AS qtd
       FROM metabase_changes
