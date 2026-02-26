@@ -117,7 +117,7 @@ final class TicketsExtractor {
         CASE WHEN t.solvedate IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, t.date, t.solvedate) END AS mttr_minutos,
 
         CASE
-          WHEN t.closedate IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, t.date, t.closedate)
+          WHEN t.closedate IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, t.date, t.solvedate)
           ELSE TIMESTAMPDIFF(MINUTE, t.date, UTC_TIMESTAMP())
         END AS aging_minutos,
 
