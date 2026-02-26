@@ -35,7 +35,11 @@ final class ChangesJob {
       Checkpoint::upsertCheckpointNow($dst, $entity);
 
     } catch (Throwable $e) {
-      EtlError::logError($dst, $runId, $entity, $e->getMessage());
+      EtlError::log($dst, $runId, $entity, $e->getMessage(), [
+        'exception_class' => get_class($e),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+      ]);
       EtlRun::finishFailed($dst, $runId, $e->getMessage());
       throw $e;
     }
