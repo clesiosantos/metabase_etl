@@ -1,5 +1,6 @@
 <?php
 final class ProblemsLoader {
+
   public static function upsertStatement(PDO $dst): PDOStatement {
     $sql = "
       INSERT INTO metabase_problems (
@@ -13,7 +14,9 @@ final class ProblemsLoader {
         tipo_contrato, grupo_solucao, tipo_atividade,
         agente_solucionador, nome_solicitante,
         entidade_cliente, localizacao_fisica,
-        tags, users_id_recipient, locations_id, data_carga
+        tags,
+        users_id_recipient, locations_id,
+        data_carga
       ) VALUES (
         :chamado, :titulo_chamado,
         :data_criacao, :data_solucao, :data_fechamento, :data_ultima_atualizacao, :data_id,
@@ -21,11 +24,13 @@ final class ProblemsLoader {
         :ttr_status, :ttr_em_risco, :limite_solucao,
         :mttr_minutos, :aging_minutos,
         :servico_completo, :categoria, :subcategoria, :servico,
-        :grupo_solucionador, grupo_solucionador_nome, id_grupo_solucionador,
-        tipo_contrato, grupo_solucao, tipo_atividade,
-        agente_solucionador, nome_solicitante,
-        entidade_cliente, localizacao_fisica,
-        tags, users_id_recipient, locations_id, data_carga
+        :grupo_solucionador, :grupo_solucionador_nome, :id_grupo_solucionador,
+        :tipo_contrato, :grupo_solucao, :tipo_atividade,
+        :agente_solucionador, :nome_solicitante,
+        :entidade_cliente, :localizacao_fisica,
+        :tags,
+        :users_id_recipient, :locations_id,
+        :data_carga
       )
       ON DUPLICATE KEY UPDATE
         titulo_chamado=VALUES(titulo_chamado),

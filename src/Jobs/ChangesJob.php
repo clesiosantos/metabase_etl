@@ -1,8 +1,11 @@
 <?php
 final class ChangesJob {
+
   public static function run(PDO $src, PDO $dst, string $mode, int $windowFullDays, int $batchSize): void {
     $entity = 'changes';
-    $runId = EtlRun::start($dst, $entity, $mode, $windowFullDays, $batchSize, ['metabase_changes']);
+    $tablesUpdated = ['metabase_changes'];
+
+    $runId = EtlRun::start($dst, $entity, $mode, $windowFullDays, $batchSize, $tablesUpdated);
 
     try {
       $lastUtc = Checkpoint::get($dst, $entity);
@@ -15,24 +18,22 @@ final class ChangesJob {
       EtlRun::setSelected($dst, $runId, $idsSelected);
 
       $upsert = ChangesLoader::upsertStatement($dst);
-      $rowsUpserted = 0;
 
       for ($i = 0; $i < $idsSelected; $i += $batchSize) {
         $chunk = array_slice($ids, $i, $batchSize);
         $st = ChangesExtractor::fetchDetailsByIds($src, $chunk);
 
         while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
-          $bindRow = self::bindRow($row);
-          $upsert->execute($bindRow);
-          $rowsUpserted++;
+          $upsert->execute(self::bindRow($row));
           EtlRun::addUpserted($dst, $runId, 1);
         }
       }
 
-      $validation = Validator::validateRun($dst, 'metabase_changes', $rowsUpserted);
-      EtlRun::finishSuccess($dst, $runId, $validation);
+      $validation = self::validate($dst);
+      EtlRun::finishSuccess($dst, $runId, $validation, 'OK');
 
-      Checkpoint::set($dst, $entity, date('Y-m-d H:i:s'));
+      // checkpoint gravado com hora UTC da aplicação (timezone já está UTC no bin/etl.php)
+      Checkpoint::set($dst, $entity, gmdate('Y-m-d H:i:s'));
 
     } catch (Throwable $e) {
       EtlError::log($dst, $runId, $entity, $e->getMessage(), [
@@ -40,7 +41,11 @@ final class ChangesJob {
         'file' => $e->getFile(),
         'line' => $e->getLine(),
       ]);
-      EtlRun::finishFailed($dst, $runId, $e->getMessage());
+      EtlRun::finishFailed($dst, $runId, $e->getMessage(), [
+        'exception_class' => get_class($e),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+      ]);
       throw $e;
     }
   }
@@ -49,38 +54,90 @@ final class ChangesJob {
     return [
       ':chamado' => $row['chamado'] ?? null,
       ':titulo_chamado' => $row['titulo_chamado'] ?? null,
+
       ':data_criacao' => $row['data_criacao'] ?? null,
       ':data_solucao' => $row['data_solucao'] ?? null,
       ':data_fechamento' => $row['data_fechamento'] ?? null,
       ':data_ultima_atualizacao' => $row['data_ultima_atualizacao'] ?? null,
       ':data_id' => $row['data_id'] ?? null,
+
       ':status_chamado' => $row['status_chamado'] ?? null,
       ':prioridade' => $row['prioridade'] ?? null,
       ':urgencia' => $row['urgencia'] ?? null,
       ':impacto' => $row['impacto'] ?? null,
+
       ':ttr_status' => $row['ttr_status'] ?? null,
-      ':ttr_em_risco' => $row['ttr_em_risco'] ?? 0,
+      ':ttr_em_risco' => isset($row['ttr_em_risco']) ? (int)$row['ttr_em_risco'] : 0,
       ':limite_solucao' => $row['limite_solucao'] ?? null,
+
       ':mttr_minutos' => $row['mttr_minutos'] ?? null,
       ':aging_minutos' => $row['aging_minutos'] ?? null,
+
       ':servico_completo' => $row['servico_completo'] ?? null,
       ':categoria' => $row['categoria'] ?? null,
       ':subcategoria' => $row['subcategoria'] ?? null,
       ':servico' => $row['servico'] ?? null,
+
       ':grupo_solucionador' => $row['grupo_solucionador'] ?? null,
       ':grupo_solucionador_nome' => $row['grupo_solucionador_nome'] ?? null,
       ':id_grupo_solucionador' => $row['id_grupo_solucionador'] ?? null,
       ':tipo_contrato' => $row['tipo_contrato'] ?? null,
       ':grupo_solucao' => $row['grupo_solucao'] ?? null,
       ':tipo_atividade' => $row['tipo_atividade'] ?? null,
+
       ':agente_solucionador' => $row['agente_solucionador'] ?? null,
       ':nome_solicitante' => $row['nome_solicitante'] ?? null,
+
       ':entidade_cliente' => $row['entidade_cliente'] ?? null,
       ':localizacao_fisica' => $row['localizacao_fisica'] ?? null,
+
       ':tags' => $row['tags'] ?? null,
+
       ':users_id_recipient' => $row['users_id_recipient'] ?? null,
       ':locations_id' => $row['locations_id'] ?? null,
-      ':data_carga' => $row['data_carga'] ?? null
+
+      ':data_carga' => $row['data_carga'] ?? gmdate('Y-m-d H:i:s'),
     ];
+  }
+
+  private static function validate(PDO $dst): array {
+    // Validação simples e barata (não depende do Validator.php existente)
+    // Você pode enriquecer depois no padrão do seu Validator.
+    $out = [
+      'table' => 'metabase_changes',
+      'checked_at' => gmdate('Y-m-d H:i:s'),
+      'null_rates' => [],
+      'ttr_status_distribution' => [],
+    ];
+
+    // null rate (data_id, entidade_cliente)
+    foreach (['data_id', 'entidade_cliente'] as $col) {
+      $st = $dst->query("
+        SELECT
+          COUNT(*) AS total,
+          SUM(CASE WHEN {$col} IS NULL OR {$col} = '' THEN 1 ELSE 0 END) AS nulls
+        FROM metabase_changes
+      ");
+      $r = $st->fetch(PDO::FETCH_ASSOC);
+      $total = (int)($r['total'] ?? 0);
+      $nulls = (int)($r['nulls'] ?? 0);
+      $out['null_rates'][$col] = $total > 0 ? round(100 * $nulls / $total, 2) : null;
+    }
+
+    // distribuição de ttr_status
+    $st = $dst->query("
+      SELECT ttr_status, COUNT(*) AS qtd
+      FROM metabase_changes
+      GROUP BY ttr_status
+      ORDER BY qtd DESC
+    ");
+    while ($r = $st->fetch(PDO::FETCH_ASSOC)) {
+      $out['ttr_status_distribution'][] = [
+        'value' => $r['ttr_status'],
+        'count' => (int)$r['qtd']
+      ];
+    }
+
+    return $out;
   }
 }

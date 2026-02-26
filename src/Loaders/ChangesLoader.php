@@ -1,5 +1,6 @@
 <?php
 final class ChangesLoader {
+
   public static function upsertStatement(PDO $dst): PDOStatement {
     $sql = "
       INSERT INTO metabase_changes (
@@ -13,7 +14,9 @@ final class ChangesLoader {
         tipo_contrato, grupo_solucao, tipo_atividade,
         agente_solucionador, nome_solicitante,
         entidade_cliente, localizacao_fisica,
-        tags, users_id_recipient, locations_id, data_carga
+        tags,
+        users_id_recipient, locations_id,
+        data_carga
       ) VALUES (
         :chamado, :titulo_chamado,
         :data_criacao, :data_solucao, :data_fechamento, :data_ultima_atualizacao, :data_id,
@@ -25,7 +28,9 @@ final class ChangesLoader {
         :tipo_contrato, :grupo_solucao, :tipo_atividade,
         :agente_solucionador, :nome_solicitante,
         :entidade_cliente, :localizacao_fisica,
-        :tags, :users_id_recipient, :locations_id, :data_carga
+        :tags,
+        :users_id_recipient, :locations_id,
+        :data_carga
       )
       ON DUPLICATE KEY UPDATE
         titulo_chamado=VALUES(titulo_chamado),
