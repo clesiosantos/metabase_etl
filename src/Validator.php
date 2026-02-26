@@ -15,7 +15,6 @@ final class Validator {
 
         SUM(CASE WHEN id_grupo_solucionador IS NOT NULL THEN 1 ELSE 0 END) AS gid_ok,
 
-        -- Agora validamos os campos do grupo conforme mapeamento corrigido
         SUM(CASE WHEN tipo_contrato IS NOT NULL AND tipo_contrato <> '' THEN 1 ELSE 0 END) AS tipo_contrato_ok,
         SUM(CASE WHEN grupo_solucao IS NOT NULL AND grupo_solucao <> '' THEN 1 ELSE 0 END) AS grupo_solucao_ok,
         SUM(CASE WHEN tipo_atividade IS NOT NULL AND tipo_atividade <> '' THEN 1 ELSE 0 END) AS tipo_atividade_ok
@@ -35,7 +34,6 @@ final class Validator {
       WHERE servico_completo IS NULL
     ")->fetch()['c'];
 
-    // Consistência: se grupo_solucionador tem ' > ', então grupo_solucao deve existir
     $out['group_split_inconsistent'] = (int)$dst->query("
       SELECT COUNT(*) AS c
       FROM metabase_tickets
