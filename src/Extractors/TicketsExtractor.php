@@ -34,6 +34,8 @@ final class TicketsExtractor {
         t.solvedate AS data_solucao,
         t.closedate AS data_fechamento,
         t.date_mod AS data_ultima_atualizacao,
+
+        /* Referência única para calendário */
         DATE(t.date) AS data_id,
 
         CASE t.status
@@ -96,14 +98,18 @@ final class TicketsExtractor {
 
         (t.sla_waiting_duration/60) AS tempo_espera_minutos,
 
+        /* Catálogo */
         ic.completename AS servico_completo,
         SUBSTRING_INDEX(ic.completename, ' > ', 1) AS categoria,
         SUBSTRING_INDEX(SUBSTRING_INDEX(ic.completename, ' > ', 2), ' > ', -1) AS subcategoria,
         SUBSTRING_INDEX(ic.completename, ' > ', -1) AS servico,
 
+        /* Grupo (completename + name) */
         gsol.completename AS grupo_solucionador,
         gsol.name AS grupo_solucionador_nome,
         gsol.id AS id_grupo_solucionador,
+
+        /* Quebra (conforme sua regra) */
         SUBSTRING_INDEX(gsol.completename, ' > ', 1) AS tipo_contrato,
         SUBSTRING_INDEX(SUBSTRING_INDEX(gsol.completename, ' > ', 2), ' > ', -1) AS grupo_solucao,
         SUBSTRING_INDEX(gsol.completename, ' > ', -1) AS tipo_atividade,

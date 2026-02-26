@@ -1,6 +1,10 @@
 /* =========================================================
-   RESET COMPLETO DO DW (CUIDADO: APAGA DADOS)
-   Alinhado com tabela calendário
+   DW GLPI para Metabase - RESET COMPLETO (CUIDADO)
+   MySQL 8+
+   - Tabela fato: metabase_tickets
+   - Dimensão: dim_calendario
+   - Auditoria ETL: etl_run, etl_error, etl_checkpoint
+   - Popula calendário via CTE recursivo (sem procedure)
    ========================================================= */
 
 CREATE DATABASE IF NOT EXISTS dw_glpi
@@ -9,29 +13,32 @@ CREATE DATABASE IF NOT EXISTS dw_glpi
 
 USE dw_glpi;
 
-/* Drop views */
+/* -------------------------
+   Drop Views
+   ------------------------- */
 DROP VIEW IF EXISTS v_tickets_ultimos_15_dias;
 DROP VIEW IF EXISTS v_tickets_sla_risco;
 DROP VIEW IF EXISTS v_tickets_abertos;
 
-/* Drop tables */
+/* -------------------------
+   Drop Tables
+   ------------------------- */
 DROP TABLE IF EXISTS metabase_tickets;
+DROP TABLE IF EXISTS dim_calendario;
 DROP TABLE IF EXISTS etl_error;
 DROP TABLE IF EXISTS etl_run;
 DROP TABLE IF EXISTS etl_checkpoint;
-DROP TABLE IF EXISTS dim_calendario;
 
-/* =========================================================
-   Controle / Auditoria ETL
-   ========================================================= */
-
+/* -------------------------
+   Auditoria / Controle ETL
+   ------------------------- */
 CREATE TABLE etl_run (
   run_id BIGINT NOT NULL AUTO_INCREMENT,
   started_at DATETIME NOT NULL,
   finished_at DATETIME NULL,
-  status VARCHAR(20) NOT NULL,
-  mode VARCHAR(20) NOT NULL,
-  entity_name VARCHAR(50) NOT NULL,
+  status VARCHAR(20) NOT NULL,            /* RUNNING | SUCCESS | FAILED */
+  mode VARCHAR(20) NOT NULL,              /* incremental | full */
+  entity_name VARCHAR(50) NOT NULL,       /* tickets */
   window_full_days INT NOT NULL DEFAULT 15,
   batch_size INT NOT NULL DEFAULT 1000,
   tables_updated VARCHAR(500) NULL,
@@ -62,83 +69,94 @@ CREATE TABLE etl_checkpoint (
   PRIMARY KEY (entity_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* =========================================================
+/* -------------------------
    Dimensão Calendário
-   ========================================================= */
-
+   ------------------------- */
 CREATE TABLE dim_calendario (
-    data DATE NOT NULL,
-    ano INT NOT NULL,
-    mes INT NOT NULL,
-    dia INT NOT NULL,
-    trimestre INT NOT NULL,
-    semana_do_ano INT NOT NULL,
-    dia_da_semana_num INT NOT NULL,
-    dia_da_semana_nome VARCHAR(20) NOT NULL,
-    mes_nome VARCHAR(20) NOT NULL,
-    ano_mes VARCHAR(7) NOT NULL,
-    eh_fim_de_semana TINYINT(1) NOT NULL,
-    PRIMARY KEY (data),
-    INDEX idx_cal_ano_mes (ano, mes),
-    INDEX idx_cal_ano_trimestre (ano, trimestre)
+  data DATE NOT NULL,
+  ano INT NOT NULL,
+  mes INT NOT NULL,
+  dia INT NOT NULL,
+  trimestre INT NOT NULL,
+  semana_do_ano INT NOT NULL,
+  dia_da_semana_num INT NOT NULL,
+  dia_da_semana_nome VARCHAR(20) NOT NULL,
+  mes_nome VARCHAR(20) NOT NULL,
+  ano_mes VARCHAR(7) NOT NULL,            /* YYYY-MM */
+  eh_fim_de_semana TINYINT(1) NOT NULL,
+  PRIMARY KEY (data),
+  INDEX idx_cal_ano_mes (ano, mes),
+  INDEX idx_cal_ano_trimestre (ano, trimestre),
+  INDEX idx_cal_ano_semana (ano, semana_do_ano),
+  INDEX idx_cal_ano_mes_str (ano_mes)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* Procedure para popular o calendário */
-DELIMITER $$
+/* -------------------------
+   Popular dim_calendario (sem procedure)
+   - Sintaxe: INSERT ... WITH RECURSIVE ... SELECT ...
+   - Ajuste o intervalo conforme necessário
+   ------------------------- */
+SET SESSION cte_max_recursion_depth = 10000;
 
-CREATE PROCEDURE PopulateCalendar(IN start_date DATE, IN end_date DATE)
-BEGIN
-    DECLARE current_date DATE;
-    SET current_date = start_date;
-    WHILE current_date <= end_date DO
-        INSERT INTO dim_calendario (
-            data,
-            ano,
-            mes,
-            dia,
-            trimestre,
-            semana_do_ano,
-            dia_da_semana_num,
-            dia_da_semana_nome,
-            mes_nome,
-            ano_mes,
-            eh_fim_de_semana
-        ) VALUES (
-            current_date,
-            YEAR(current_date),
-            MONTH(current_date),
-            DAY(current_date),
-            QUARTER(current_date),
-            WEEKOFYEAR(current_date),
-            DAYOFWEEK(current_date),
-            CASE DAYOFWEEK(current_date)
-                WHEN 1 THEN 'Domingo'
-                WHEN 2 THEN 'Segunda-feira'
-                WHEN 3 THEN 'Terça-feira'
-                WHEN 4 THEN 'Quarta-feira'
-                WHEN 5 THEN 'Quinta-feira'
-                WHEN 6 THEN 'Sexta-feira'
-                WHEN 7 THEN 'Sábado'
-            END,
-            CASE MONTH(current_date)
-                WHEN 1 THEN 'Janeiro' WHEN 2 THEN 'Fevereiro' WHEN 3 THEN 'Março'
-                WHEN 4 THEN 'Abril' WHEN 5 THEN 'Maio' WHEN 6 THEN 'Junho'
-                WHEN 7 THEN 'Julho' WHEN 8 THEN 'Agosto' WHEN 9 THEN 'Setembro'
-                WHEN 10 THEN 'Outubro' WHEN 11 THEN 'Novembro' WHEN 12 THEN 'Dezembro'
-            END,
-            DATE_FORMAT(current_date, '%Y-%m'),
-            IF(DAYOFWEEK(current_date) IN (1, 7), 1, 0)
-        );
-        SET current_date = ADDDATE(current_date, INTERVAL 1 DAY);
-    END WHILE;
-END$$
+INSERT INTO dim_calendario (
+  data,
+  ano,
+  mes,
+  dia,
+  trimestre,
+  semana_do_ano,
+  dia_da_semana_num,
+  dia_da_semana_nome,
+  mes_nome,
+  ano_mes,
+  eh_fim_de_semana
+)
+WITH RECURSIVE datas AS (
+  SELECT DATE('2025-01-01') AS d
+  UNION ALL
+  SELECT DATE_ADD(d, INTERVAL 1 DAY)
+  FROM datas
+  WHERE d < DATE('2030-12-31')
+)
+SELECT
+  d AS data,
+  YEAR(d) AS ano,
+  MONTH(d) AS mes,
+  DAY(d) AS dia,
+  QUARTER(d) AS trimestre,
+  WEEKOFYEAR(d) AS semana_do_ano,
+  DAYOFWEEK(d) AS dia_da_semana_num,
+  CASE DAYOFWEEK(d)
+    WHEN 1 THEN 'Domingo'
+    WHEN 2 THEN 'Segunda-feira'
+    WHEN 3 THEN 'Terça-feira'
+    WHEN 4 THEN 'Quarta-feira'
+    WHEN 5 THEN 'Quinta-feira'
+    WHEN 6 THEN 'Sexta-feira'
+    WHEN 7 THEN 'Sábado'
+  END AS dia_da_semana_nome,
+  CASE MONTH(d)
+    WHEN 1 THEN 'Janeiro'
+    WHEN 2 THEN 'Fevereiro'
+    WHEN 3 THEN 'Março'
+    WHEN 4 THEN 'Abril'
+    WHEN 5 THEN 'Maio'
+    WHEN 6 THEN 'Junho'
+    WHEN 7 THEN 'Julho'
+    WHEN 8 THEN 'Agosto'
+    WHEN 9 THEN 'Setembro'
+    WHEN 10 THEN 'Outubro'
+    WHEN 11 THEN 'Novembro'
+    WHEN 12 THEN 'Dezembro'
+  END AS mes_nome,
+  DATE_FORMAT(d, '%Y-%m') AS ano_mes,
+  IF(DAYOFWEEK(d) IN (1,7), 1, 0) AS eh_fim_de_semana
+FROM datas;
 
-DELIMITER ;
-
-/* =========================================================
-   Fato: Tickets (com data_id para calendário)
-   ========================================================= */
-
+/* -------------------------
+   Fato: metabase_tickets
+   - data_id: chave para dim_calendario.data
+   ------------------------- */
 CREATE TABLE metabase_tickets (
   chamado INT NOT NULL,
 
@@ -149,7 +167,8 @@ CREATE TABLE metabase_tickets (
   data_solucao DATETIME NULL,
   data_fechamento DATETIME NULL,
   data_ultima_atualizacao DATETIME NULL,
-  data_id DATE NULL,
+
+  data_id DATE NULL,                      /* DATE(data_criacao) para join no calendário */
 
   status_chamado VARCHAR(30) NULL,
 
@@ -175,12 +194,15 @@ CREATE TABLE metabase_tickets (
   subcategoria VARCHAR(255) NULL,
   servico VARCHAR(255) NULL,
 
-  grupo_solucionador VARCHAR(255) NULL,
-  grupo_solucionador_nome VARCHAR(255) NULL,
+  /* Grupo: completename (principal) + name (curto) */
+  grupo_solucionador VARCHAR(255) NULL,        /* glpi_groups.completename */
+  grupo_solucionador_nome VARCHAR(255) NULL,   /* glpi_groups.name */
   id_grupo_solucionador INT NULL,
-  tipo_contrato VARCHAR(255) NULL,
-  grupo_solucao VARCHAR(255) NULL,
-  tipo_atividade VARCHAR(255) NULL,
+
+  /* Quebra do completename do grupo */
+  tipo_contrato VARCHAR(255) NULL,             /* nível 1 */
+  grupo_solucao VARCHAR(255) NULL,             /* nível 2 */
+  tipo_atividade VARCHAR(255) NULL,            /* nível 3 */
 
   agente_solucionador VARCHAR(255) NULL,
   nome_solicitante VARCHAR(255) NULL,
@@ -206,26 +228,26 @@ CREATE TABLE metabase_tickets (
 
   INDEX idx_tickets_status (status_chamado),
   INDEX idx_tickets_cliente (entidade_cliente),
-  INDEX idx_tickets_grupo (grupo_solucionador),
-  INDEX idx_tickets_grupo_nome (grupo_solucionador_nome),
-  INDEX idx_tickets_grupo_id (id_grupo_solucionador),
-  INDEX idx_tickets_tecnico (nome_tecnico_responsavel),
 
+  INDEX idx_tickets_data_id (data_id),
   INDEX idx_tickets_datas (data_criacao, data_solucao, data_fechamento),
   INDEX idx_tickets_date_mod (data_ultima_atualizacao),
-  INDEX idx_tickets_data_id (data_id),
 
   INDEX idx_tickets_sla (status_sla, sla_risco, limite_solucao),
   INDEX idx_tickets_aging (aging_minutos),
 
   INDEX idx_tickets_catalogo (categoria, subcategoria, servico),
+
+  INDEX idx_tickets_grupo (grupo_solucionador),
+  INDEX idx_tickets_grupo_nome (grupo_solucionador_nome),
+  INDEX idx_tickets_grupo_id (id_grupo_solucionador),
+
   INDEX idx_tickets_data_carga (data_carga)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* =========================================================
+/* -------------------------
    Views (Metabase)
-   ========================================================= */
-
+   ------------------------- */
 CREATE VIEW v_tickets_abertos AS
 SELECT *
 FROM metabase_tickets

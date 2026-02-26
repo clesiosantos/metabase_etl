@@ -10,15 +10,11 @@ final class TicketsLoader {
         sla_risco, sla_atendimento_ok, sla_solucao_ok,
         tma_minutos, mttr_minutos, aging_minutos,
         tempo_primeiro_atendimento_minutos, tempo_espera_minutos,
-
         servico_completo, categoria, subcategoria, servico,
-
         grupo_solucionador, grupo_solucionador_nome, id_grupo_solucionador,
         tipo_contrato, grupo_solucao, tipo_atividade,
-
         agente_solucionador, nome_solicitante, nome_tecnico_responsavel,
         entidade_cliente, localizacao_fisica,
-
         reaberturas, tempo_total_lancados, tem_tecnico_atribuido, tem_prioridade,
         incidente_recorrente, tags, users_id_recipient, locations_id, data_carga
       ) VALUES (
@@ -29,15 +25,11 @@ final class TicketsLoader {
         :sla_risco, :sla_atendimento_ok, :sla_solucao_ok,
         :tma_minutos, :mttr_minutos, :aging_minutos,
         :tempo_primeiro_atendimento_minutos, :tempo_espera_minutos,
-
         :servico_completo, :categoria, :subcategoria, :servico,
-
         :grupo_solucionador, :grupo_solucionador_nome, :id_grupo_solucionador,
         :tipo_contrato, :grupo_solucao, :tipo_atividade,
-
         :agente_solucionador, :nome_solicitante, :nome_tecnico_responsavel,
         :entidade_cliente, :localizacao_fisica,
-
         :reaberturas, :tempo_total_lancados, :tem_tecnico_atribuido, :tem_prioridade,
         :incidente_recorrente, :tags, :users_id_recipient, :locations_id, :data_carga
       )
@@ -64,25 +56,21 @@ final class TicketsLoader {
         aging_minutos=VALUES(aging_minutos),
         tempo_primeiro_atendimento_minutos=VALUES(tempo_primeiro_atendimento_minutos),
         tempo_espera_minutos=VALUES(tempo_espera_minutos),
-
         servico_completo=VALUES(servico_completo),
         categoria=VALUES(categoria),
         subcategoria=VALUES(subcategoria),
         servico=VALUES(servico),
-
         grupo_solucionador=VALUES(grupo_solucionador),
         grupo_solucionador_nome=VALUES(grupo_solucionador_nome),
         id_grupo_solucionador=VALUES(id_grupo_solucionador),
         tipo_contrato=VALUES(tipo_contrato),
         grupo_solucao=VALUES(grupo_solucao),
         tipo_atividade=VALUES(tipo_atividade),
-
         agente_solucionador=VALUES(agente_solucionador),
         nome_solicitante=VALUES(nome_solicitante),
         nome_tecnico_responsavel=VALUES(nome_tecnico_responsavel),
         entidade_cliente=VALUES(entidade_cliente),
         localizacao_fisica=VALUES(localizacao_fisica),
-
         reaberturas=VALUES(reaberturas),
         tempo_total_lancados=VALUES(tempo_total_lancados),
         tem_tecnico_atribuido=VALUES(tem_tecnico_atribuido),
