@@ -1,46 +1,42 @@
 <?php
-final class Validator {
-  public static function validateTickets(PDO $dst): array {
-    $out = [];
+declare(strict_types=1);
 
-    $out['dw_total'] = (int)$dst->query("SELECT COUNT(*) AS c FROM metabase_tickets")->fetch()['c'];
+final class TicketsEtl {
+  public static function run(PDO $src, PDO $dst, Logger $log, string $mode = 'incremental'): void {
+    // Carrega config global do config/config.php (variáveis $ETL_CFG, etc.)
+    // Se você já tem um array de config padronizado, adapte aqui.
+    $cfg = self::loadCfg();
 
-    $sqlFilled = "
-      SELECT
-        SUM(CASE WHEN categoria IS NOT NULL AND categoria <> '' THEN 1 ELSE 0 END) AS cat_ok,
-        SUM(CASE WHEN subcategoria IS NOT NULL AND subcategoria <> '' THEN 1 ELSE 0 END) AS sub_ok,
-        SUM(CASE WHEN servico IS NOT NULL AND servico <> '' THEN 1 ELSE 0 END) AS srv_ok,
+    // Se seu projeto usa lock, faça aqui
+    if (class_exists('Lock')) {
+      // Nome do lock pode ser o que você já usa no seu ambiente
+      Lock::acquire($dst, 'etl_glpi_metabase_tickets', 10);
+    }
 
-        SUM(CASE WHEN id_grupo_solucionador IS NOT NULL THEN 1 ELSE 0 END) AS gid_ok,
+    try {
+      TicketsJob::run($src, $dst, $log, $cfg, $mode);
+    } finally {
+      if (class_exists('Lock')) {
+        Lock::release($dst, 'etl_glpi_metabase_tickets');
+      }
+    }
+  }
 
-        -- Agora validamos os campos do grupo conforme mapeamento corrigido
-        SUM(CASE WHEN tipo_contrato IS NOT NULL AND tipo_contrato <> '' THEN 1 ELSE 0 END) AS tipo_contrato_ok,
-        SUM(CASE WHEN grupo_solucao IS NOT NULL AND grupo_solucao <> '' THEN 1 ELSE 0 END) AS grupo_solucao_ok,
-        SUM(CASE WHEN tipo_atividade IS NOT NULL AND tipo_atividade <> '' THEN 1 ELSE 0 END) AS tipo_atividade_ok
-      FROM metabase_tickets
-    ";
-    $out['filled'] = $dst->query($sqlFilled)->fetch();
+  private static function loadCfg(): array {
+    /**
+     * Ajuste este método para o seu config/config.php.
+     * O importante é: TicketsJob espera $cfg['etl']['batch_size'] e ['window_full_days'].
+     */
+    if (isset($GLOBALS['ETL_CFG']) && is_array($GLOBALS['ETL_CFG'])) {
+      return $GLOBALS['ETL_CFG'];
+    }
 
-    $out['closed_without_date'] = (int)$dst->query("
-      SELECT COUNT(*) AS c
-      FROM metabase_tickets
-      WHERE status_chamado = 'Fechado' AND data_fechamento IS NULL
-    ")->fetch()['c'];
-
-    $out['null_servico_completo'] = (int)$dst->query("
-      SELECT COUNT(*) AS c
-      FROM metabase_tickets
-      WHERE servico_completo IS NULL
-    ")->fetch()['c'];
-
-    // Consistência: se grupo_solucionador tem ' > ', então grupo_solucao deve existir
-    $out['group_split_inconsistent'] = (int)$dst->query("
-      SELECT COUNT(*) AS c
-      FROM metabase_tickets
-      WHERE grupo_solucionador LIKE '% > %'
-        AND (grupo_solucao IS NULL OR grupo_solucao = '')
-    ")->fetch()['c'];
-
-    return $out;
+    // fallback seguro: defaults
+    return [
+      'etl' => [
+        'batch_size' => 1000,
+        'window_full_days' => 15
+      ]
+    ];
   }
 }
