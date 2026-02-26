@@ -1,4 +1,10 @@
 <?php
+/**
+ * Data: 26/02/2026
+ * Versão: 1.0.1
+ * Autor: 3P Systems — www.3psystems.com.br
+ */
+
 declare(strict_types=1);
 
 final class Validator {
@@ -12,9 +18,7 @@ final class Validator {
         SUM(CASE WHEN categoria IS NOT NULL AND categoria <> '' THEN 1 ELSE 0 END) AS cat_ok,
         SUM(CASE WHEN subcategoria IS NOT NULL AND subcategoria <> '' THEN 1 ELSE 0 END) AS sub_ok,
         SUM(CASE WHEN servico IS NOT NULL AND servico <> '' THEN 1 ELSE 0 END) AS srv_ok,
-
         SUM(CASE WHEN id_grupo_solucionador IS NOT NULL THEN 1 ELSE 0 END) AS gid_ok,
-
         SUM(CASE WHEN tipo_contrato IS NOT NULL AND tipo_contrato <> '' THEN 1 ELSE 0 END) AS tipo_contrato_ok,
         SUM(CASE WHEN grupo_solucao IS NOT NULL AND grupo_solucao <> '' THEN 1 ELSE 0 END) AS grupo_solucao_ok,
         SUM(CASE WHEN tipo_atividade IS NOT NULL AND tipo_atividade <> '' THEN 1 ELSE 0 END) AS tipo_atividade_ok
