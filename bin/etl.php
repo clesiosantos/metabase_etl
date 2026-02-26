@@ -13,9 +13,8 @@ require_once __DIR__ . '/../src/EtlRun.php';
 require_once __DIR__ . '/../src/EtlError.php';
 require_once __DIR__ . '/../src/Validator.php';
 
-require_once __DIR__ . '/../src/Transformers/TicketsTransformer.php';
-
 require_once __DIR__ . '/../src/Extractors/TicketsExtractor.php';
+require_once __DIR__ . '/../src/Transformers/TicketsTransformer.php';
 require_once __DIR__ . '/../src/Loaders/TicketsLoader.php';
 
 require_once __DIR__ . '/../src/Extractors/TagsExtractor.php';
@@ -42,24 +41,16 @@ if (!$entity) {
 
 $log = new Logger(__DIR__ . '/../logs/etl.log');
 
-try {
-  $src = Db::connect($GLPI_DB);
-  $dst = Db::connect($DW_DB);
+// As variáveis $GLPI_DB e $DW_DB devem vir do config/config.php
+// e devem ser arrays compatíveis com Db::pdo(array $cfg): PDO
+$src = Db::pdo($GLPI_DB);
+$dst = Db::pdo($DW_DB);
 
-  // lock global (opcional, se seu Lock.php já faz isso em TicketsEtl)
-  // Lock::acquire($dst, 'etl_glpi_metabase', 10);
-
-  switch ($entity) {
-    case 'tickets':
-      TicketsEtl::run($src, $dst, $log, $mode);
-      break;
-    default:
-      usage();
-      exit(1);
-  }
-
-  // Lock::release($dst, 'etl_glpi_metabase');
-} catch (Throwable $e) {
-  $log->error('ETL fatal', ['message' => $e->getMessage()]);
-  throw $e;
+switch ($entity) {
+  case 'tickets':
+    TicketsEtl::run($src, $dst, $log, $mode);
+    break;
+  default:
+    usage();
+    exit(1);
 }
