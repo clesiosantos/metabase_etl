@@ -34,8 +34,6 @@ final class TicketsExtractor {
         t.solvedate AS data_solucao,
         t.closedate AS data_fechamento,
         t.date_mod AS data_ultima_atualizacao,
-
-        /* Referência única para calendário */
         DATE(t.date) AS data_id,
 
         CASE t.status
@@ -98,18 +96,14 @@ final class TicketsExtractor {
 
         (t.sla_waiting_duration/60) AS tempo_espera_minutos,
 
-        /* Catálogo */
         ic.completename AS servico_completo,
         SUBSTRING_INDEX(ic.completename, ' > ', 1) AS categoria,
         SUBSTRING_INDEX(SUBSTRING_INDEX(ic.completename, ' > ', 2), ' > ', -1) AS subcategoria,
         SUBSTRING_INDEX(ic.completename, ' > ', -1) AS servico,
 
-        /* Grupo (completename + name) */
         gsol.completename AS grupo_solucionador,
         gsol.name AS grupo_solucionador_nome,
         gsol.id AS id_grupo_solucionador,
-
-        /* Quebra (conforme sua regra) */
         SUBSTRING_INDEX(gsol.completename, ' > ', 1) AS tipo_contrato,
         SUBSTRING_INDEX(SUBSTRING_INDEX(gsol.completename, ' > ', 2), ' > ', -1) AS grupo_solucao,
         SUBSTRING_INDEX(gsol.completename, ' > ', -1) AS tipo_atividade,
@@ -130,6 +124,7 @@ final class TicketsExtractor {
 
         0 AS incidente_recorrente,
 
+        /* Tags agregadas (string) */
         tagg.tags AS tags,
 
         t.users_id_recipient,
@@ -166,11 +161,13 @@ final class TicketsExtractor {
       ) ttsk ON ttsk.tickets_id = t.id
 
       LEFT JOIN (
-        SELECT ti.items_id AS ticket_id,
-               GROUP_CONCAT(tg.name ORDER BY tg.name SEPARATOR ', ') AS tags
+        SELECT
+          ti.items_id AS ticket_id,
+          GROUP_CONCAT(tg.name ORDER BY tg.name SEPARATOR ', ') AS tags
         FROM glpi_plugin_tag_tagitems ti
         JOIN glpi_plugin_tag_tags tg ON tg.id = ti.plugin_tag_tags_id
-        WHERE ti.itemtype = 'Ticket' AND tg.is_active = 1
+        WHERE ti.itemtype = 'Ticket'
+          AND tg.is_active = 1
         GROUP BY ti.items_id
       ) tagg ON tagg.ticket_id = t.id
 
@@ -179,7 +176,7 @@ final class TicketsExtractor {
     ";
 
     $st = $src->prepare($sql);
-    $st->execute($ids);
+    $st->execute(array_values($ids));
     return $st;
   }
 }

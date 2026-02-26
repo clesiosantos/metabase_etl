@@ -1,11 +1,13 @@
-/* =========================================================
-   DW GLPI para Metabase - RESET COMPLETO (CUIDADO)
-   MySQL 8+
-   - Tabela fato: metabase_tickets
-   - Dimensão: dim_calendario
+/* ============================================================
+   DW GLPI - DDL COMPLETO
+   Banco: dw_glpi
+   Inclui:
    - Auditoria ETL: etl_run, etl_error, etl_checkpoint
-   - Popula calendário via CTE recursivo (sem procedure)
-   ========================================================= */
+   - Calendário: dim_calendario (povoamento via CTE é separado)
+   - Fato Tickets: metabase_tickets
+   - Tags: dim_tags + bridge_ticket_tags
+   - Views: v_tickets_abertos, v_tickets_sla_risco, v_tickets_ultimos_15_dias
+   ============================================================ */
 
 CREATE DATABASE IF NOT EXISTS dw_glpi
   DEFAULT CHARACTER SET utf8mb4
@@ -13,32 +15,38 @@ CREATE DATABASE IF NOT EXISTS dw_glpi
 
 USE dw_glpi;
 
-/* -------------------------
-   Drop Views
-   ------------------------- */
+/* -----------------------
+   Drop views
+----------------------- */
 DROP VIEW IF EXISTS v_tickets_ultimos_15_dias;
 DROP VIEW IF EXISTS v_tickets_sla_risco;
 DROP VIEW IF EXISTS v_tickets_abertos;
 
-/* -------------------------
-   Drop Tables
-   ------------------------- */
+/* -----------------------
+   Drop tables
+----------------------- */
+DROP TABLE IF EXISTS bridge_ticket_tags;
+DROP TABLE IF EXISTS dim_tags;
+
 DROP TABLE IF EXISTS metabase_tickets;
+
 DROP TABLE IF EXISTS dim_calendario;
+
 DROP TABLE IF EXISTS etl_error;
 DROP TABLE IF EXISTS etl_run;
 DROP TABLE IF EXISTS etl_checkpoint;
 
-/* -------------------------
-   Auditoria / Controle ETL
-   ------------------------- */
+/* ============================================================
+   1) Auditoria/Controle ETL
+   ============================================================ */
+
 CREATE TABLE etl_run (
   run_id BIGINT NOT NULL AUTO_INCREMENT,
   started_at DATETIME NOT NULL,
   finished_at DATETIME NULL,
-  status VARCHAR(20) NOT NULL,            /* RUNNING | SUCCESS | FAILED */
-  mode VARCHAR(20) NOT NULL,              /* incremental | full */
-  entity_name VARCHAR(50) NOT NULL,       /* tickets */
+  status VARCHAR(20) NOT NULL,              /* RUNNING | SUCCESS | FAILED */
+  mode VARCHAR(20) NOT NULL,                /* incremental | full */
+  entity_name VARCHAR(50) NOT NULL,         /* tickets */
   window_full_days INT NOT NULL DEFAULT 15,
   batch_size INT NOT NULL DEFAULT 1000,
   tables_updated VARCHAR(500) NULL,
@@ -69,9 +77,10 @@ CREATE TABLE etl_checkpoint (
   PRIMARY KEY (entity_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* -------------------------
-   Dimensão Calendário
-   ------------------------- */
+/* ============================================================
+   2) Dimensão Calendário (referência única de período)
+   ============================================================ */
+
 CREATE TABLE dim_calendario (
   data DATE NOT NULL,
   ano INT NOT NULL,
@@ -79,37 +88,178 @@ CREATE TABLE dim_calendario (
   dia INT NOT NULL,
   trimestre INT NOT NULL,
   semana_do_ano INT NOT NULL,
-  dia_da_semana_num INT NOT NULL,
+  dia_da_semana_num INT NOT NULL,           /* DAYOFWEEK(): 1=Dom .. 7=Sáb */
   dia_da_semana_nome VARCHAR(20) NOT NULL,
   mes_nome VARCHAR(20) NOT NULL,
-  ano_mes VARCHAR(7) NOT NULL,            /* YYYY-MM */
+  ano_mes VARCHAR(7) NOT NULL,              /* YYYY-MM */
   eh_fim_de_semana TINYINT(1) NOT NULL,
   PRIMARY KEY (data),
   INDEX idx_cal_ano_mes (ano, mes),
   INDEX idx_cal_ano_trimestre (ano, trimestre),
-  INDEX idx_cal_ano_semana (ano, semana_do_ano),
-  INDEX idx_cal_ano_mes_str (ano_mes)
+  INDEX idx_cal_ano_semana (ano, semana_do_ano)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-/* -------------------------
-   Popular dim_calendario (sem procedure)
-   - Sintaxe: INSERT ... WITH RECURSIVE ... SELECT ...
-   - Ajuste o intervalo conforme necessário
-   ------------------------- */
+/* ============================================================
+   3) Dimensão Tags + Ponte Ticket-Tags (many-to-many)
+   ============================================================ */
+
+CREATE TABLE dim_tags (
+  tag_id INT UNSIGNED NOT NULL,
+  entities_id INT UNSIGNED NOT NULL,
+  is_recursive TINYINT NOT NULL,
+  is_active TINYINT NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  comment TEXT NULL,
+  color VARCHAR(50) NOT NULL,
+  type_menu TEXT NULL,
+  data_carga DATETIME NOT NULL,
+  PRIMARY KEY (tag_id),
+  INDEX idx_dim_tags_active (is_active),
+  INDEX idx_dim_tags_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE bridge_ticket_tags (
+  ticket_id INT NOT NULL,
+  tag_id INT UNSIGNED NOT NULL,
+  data_carga DATETIME NOT NULL,
+  PRIMARY KEY (ticket_id, tag_id),
+  INDEX idx_bridge_tag (tag_id),
+  INDEX idx_bridge_ticket (ticket_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+/* ============================================================
+   4) Fato: Tickets (BI-ready)
+   Observações:
+   - grupo_solucionador = glpi_groups.completename
+   - grupo_solucionador_nome = glpi_groups.name
+   - data_id = DATE(glpi_tickets.date) para join com dim_calendario
+   - tags (string) continua como conveniência, além da ponte de tags
+   ============================================================ */
+
+CREATE TABLE metabase_tickets (
+  chamado INT NOT NULL,
+
+  titulo_chamado VARCHAR(255) NULL,
+  tipo_chamado VARCHAR(50) NULL,
+
+  data_criacao DATETIME NULL,
+  data_solucao DATETIME NULL,
+  data_fechamento DATETIME NULL,
+  data_ultima_atualizacao DATETIME NULL,
+
+  /* Referência única para período / calendário */
+  data_id DATE NULL,
+
+  status_chamado VARCHAR(30) NULL,
+
+  prioridade VARCHAR(30) NULL,
+  urgencia VARCHAR(30) NULL,
+  impacto VARCHAR(30) NULL,
+
+  status_sla VARCHAR(50) NULL,
+  limite_solucao DATETIME NULL,
+  limite_atendimento DATETIME NULL,
+  sla_risco TINYINT(1) NOT NULL DEFAULT 0,
+  sla_atendimento_ok TINYINT(1) NULL,
+  sla_solucao_ok TINYINT(1) NULL,
+
+  tempo_primeiro_atendimento_minutos DECIMAL(12,2) NULL,
+  tma_minutos DECIMAL(12,2) NULL,
+  mttr_minutos DECIMAL(12,2) NULL,
+  aging_minutos DECIMAL(12,2) NULL,
+  tempo_espera_minutos DECIMAL(12,2) NULL,
+
+  servico_completo VARCHAR(255) NULL,
+  categoria VARCHAR(255) NULL,
+  subcategoria VARCHAR(255) NULL,
+  servico VARCHAR(255) NULL,
+
+  grupo_solucionador VARCHAR(255) NULL,         /* completename */
+  grupo_solucionador_nome VARCHAR(255) NULL,    /* name */
+  id_grupo_solucionador INT NULL,
+
+  /* Quebra do completename do grupo */
+  tipo_contrato VARCHAR(255) NULL,
+  grupo_solucao VARCHAR(255) NULL,
+  tipo_atividade VARCHAR(255) NULL,
+
+  agente_solucionador VARCHAR(255) NULL,
+  nome_solicitante VARCHAR(255) NULL,
+  nome_tecnico_responsavel VARCHAR(255) NULL,
+
+  entidade_cliente VARCHAR(255) NULL,
+  localizacao_fisica VARCHAR(255) NULL,
+
+  reaberturas INT NOT NULL DEFAULT 0,
+  tempo_total_lancados DECIMAL(12,2) NULL,
+  tem_tecnico_atribuido TINYINT(1) NOT NULL DEFAULT 0,
+  tem_prioridade TINYINT(1) NOT NULL DEFAULT 0,
+  incidente_recorrente TINYINT(1) NOT NULL DEFAULT 0,
+
+  /* Conveniência (string agregada) */
+  tags VARCHAR(1000) NULL,
+
+  users_id_recipient INT NULL,
+  locations_id INT NULL,
+
+  data_carga DATETIME NOT NULL,
+
+  PRIMARY KEY (chamado),
+
+  INDEX idx_tickets_status (status_chamado),
+  INDEX idx_tickets_cliente (entidade_cliente),
+
+  INDEX idx_tickets_grupo (grupo_solucionador),
+  INDEX idx_tickets_grupo_nome (grupo_solucionador_nome),
+  INDEX idx_tickets_grupo_id (id_grupo_solucionador),
+
+  INDEX idx_tickets_tecnico (nome_tecnico_responsavel),
+
+  INDEX idx_tickets_datas (data_criacao, data_solucao, data_fechamento),
+  INDEX idx_tickets_date_mod (data_ultima_atualizacao),
+  INDEX idx_tickets_data_id (data_id),
+
+  INDEX idx_tickets_sla (status_sla, sla_risco, limite_solucao),
+  INDEX idx_tickets_aging (aging_minutos),
+
+  INDEX idx_tickets_catalogo (categoria, subcategoria, servico),
+  INDEX idx_tickets_data_carga (data_carga)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+/* ============================================================
+   5) Views (Metabase)
+   ============================================================ */
+
+CREATE VIEW v_tickets_abertos AS
+SELECT *
+FROM metabase_tickets
+WHERE status_chamado <> 'Fechado';
+
+CREATE VIEW v_tickets_sla_risco AS
+SELECT *
+FROM metabase_tickets
+WHERE sla_risco = 1
+   OR status_sla = 'SLA FORA DO PRAZO';
+
+CREATE VIEW v_tickets_ultimos_15_dias AS
+SELECT *
+FROM metabase_tickets
+WHERE data_criacao >= (UTC_TIMESTAMP() - INTERVAL 15 DAY);
+
+/* ============================================================
+   6) POPULAR CALENDÁRIO (executar depois do DDL)
+   Exemplo (2025-01-01 .. 2030-12-31) - SEM PROCEDURE
+   ============================================================ */
+
+/*
+USE dw_glpi;
 SET SESSION cte_max_recursion_depth = 10000;
 
+TRUNCATE TABLE dim_calendario;
+
 INSERT INTO dim_calendario (
-  data,
-  ano,
-  mes,
-  dia,
-  trimestre,
-  semana_do_ano,
-  dia_da_semana_num,
-  dia_da_semana_nome,
-  mes_nome,
-  ano_mes,
-  eh_fim_de_semana
+  data, ano, mes, dia, trimestre, semana_do_ano,
+  dia_da_semana_num, dia_da_semana_nome, mes_nome, ano_mes, eh_fim_de_semana
 )
 WITH RECURSIVE datas AS (
   SELECT DATE('2025-01-01') AS d
@@ -152,114 +302,4 @@ SELECT
   DATE_FORMAT(d, '%Y-%m') AS ano_mes,
   IF(DAYOFWEEK(d) IN (1,7), 1, 0) AS eh_fim_de_semana
 FROM datas;
-
-/* -------------------------
-   Fato: metabase_tickets
-   - data_id: chave para dim_calendario.data
-   ------------------------- */
-CREATE TABLE metabase_tickets (
-  chamado INT NOT NULL,
-
-  titulo_chamado VARCHAR(255) NULL,
-  tipo_chamado VARCHAR(50) NULL,
-
-  data_criacao DATETIME NULL,
-  data_solucao DATETIME NULL,
-  data_fechamento DATETIME NULL,
-  data_ultima_atualizacao DATETIME NULL,
-
-  data_id DATE NULL,                      /* DATE(data_criacao) para join no calendário */
-
-  status_chamado VARCHAR(30) NULL,
-
-  prioridade VARCHAR(30) NULL,
-  urgencia VARCHAR(30) NULL,
-  impacto VARCHAR(30) NULL,
-
-  status_sla VARCHAR(50) NULL,
-  limite_solucao DATETIME NULL,
-  limite_atendimento DATETIME NULL,
-  sla_risco TINYINT(1) NOT NULL DEFAULT 0,
-  sla_atendimento_ok TINYINT(1) NULL,
-  sla_solucao_ok TINYINT(1) NULL,
-
-  tempo_primeiro_atendimento_minutos DECIMAL(12,2) NULL,
-  tma_minutos DECIMAL(12,2) NULL,
-  mttr_minutos DECIMAL(12,2) NULL,
-  aging_minutos DECIMAL(12,2) NULL,
-  tempo_espera_minutos DECIMAL(12,2) NULL,
-
-  servico_completo VARCHAR(255) NULL,
-  categoria VARCHAR(255) NULL,
-  subcategoria VARCHAR(255) NULL,
-  servico VARCHAR(255) NULL,
-
-  /* Grupo: completename (principal) + name (curto) */
-  grupo_solucionador VARCHAR(255) NULL,        /* glpi_groups.completename */
-  grupo_solucionador_nome VARCHAR(255) NULL,   /* glpi_groups.name */
-  id_grupo_solucionador INT NULL,
-
-  /* Quebra do completename do grupo */
-  tipo_contrato VARCHAR(255) NULL,             /* nível 1 */
-  grupo_solucao VARCHAR(255) NULL,             /* nível 2 */
-  tipo_atividade VARCHAR(255) NULL,            /* nível 3 */
-
-  agente_solucionador VARCHAR(255) NULL,
-  nome_solicitante VARCHAR(255) NULL,
-  nome_tecnico_responsavel VARCHAR(255) NULL,
-
-  entidade_cliente VARCHAR(255) NULL,
-  localizacao_fisica VARCHAR(255) NULL,
-
-  reaberturas INT NOT NULL DEFAULT 0,
-  tempo_total_lancados DECIMAL(12,2) NULL,
-  tem_tecnico_atribuido TINYINT(1) NOT NULL DEFAULT 0,
-  tem_prioridade TINYINT(1) NOT NULL DEFAULT 0,
-  incidente_recorrente TINYINT(1) NOT NULL DEFAULT 0,
-
-  tags VARCHAR(1000) NULL,
-
-  users_id_recipient INT NULL,
-  locations_id INT NULL,
-
-  data_carga DATETIME NOT NULL,
-
-  PRIMARY KEY (chamado),
-
-  INDEX idx_tickets_status (status_chamado),
-  INDEX idx_tickets_cliente (entidade_cliente),
-
-  INDEX idx_tickets_data_id (data_id),
-  INDEX idx_tickets_datas (data_criacao, data_solucao, data_fechamento),
-  INDEX idx_tickets_date_mod (data_ultima_atualizacao),
-
-  INDEX idx_tickets_sla (status_sla, sla_risco, limite_solucao),
-  INDEX idx_tickets_aging (aging_minutos),
-
-  INDEX idx_tickets_catalogo (categoria, subcategoria, servico),
-
-  INDEX idx_tickets_grupo (grupo_solucionador),
-  INDEX idx_tickets_grupo_nome (grupo_solucionador_nome),
-  INDEX idx_tickets_grupo_id (id_grupo_solucionador),
-
-  INDEX idx_tickets_data_carga (data_carga)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-/* -------------------------
-   Views (Metabase)
-   ------------------------- */
-CREATE VIEW v_tickets_abertos AS
-SELECT *
-FROM metabase_tickets
-WHERE status_chamado <> 'Fechado';
-
-CREATE VIEW v_tickets_sla_risco AS
-SELECT *
-FROM metabase_tickets
-WHERE sla_risco = 1
-   OR status_sla = 'SLA FORA DO PRAZO';
-
-CREATE VIEW v_tickets_ultimos_15_dias AS
-SELECT *
-FROM metabase_tickets
-WHERE data_criacao >= (UTC_TIMESTAMP() - INTERVAL 15 DAY);
+*/

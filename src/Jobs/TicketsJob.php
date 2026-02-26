@@ -2,7 +2,14 @@
 final class TicketsJob {
   public static function run(PDO $src, PDO $dst, Logger $log, array $cfg, string $mode = 'incremental'): void {
     $entity = 'tickets';
-    $tablesUpdated = ['dw_glpi.metabase_tickets', 'dw_glpi.etl_checkpoint', 'dw_glpi.etl_run', 'dw_glpi.etl_error'];
+    $tablesUpdated = [
+      'dw_glpi.metabase_tickets',
+      'dw_glpi.dim_tags',
+      'dw_glpi.bridge_ticket_tags',
+      'dw_glpi.etl_checkpoint',
+      'dw_glpi.etl_run',
+      'dw_glpi.etl_error'
+    ];
 
     $batchSize = (int)$cfg['etl']['batch_size'];
     $fullDays  = (int)$cfg['etl']['window_full_days'];
@@ -28,6 +35,9 @@ final class TicketsJob {
       EtlRun::setSelected($dst, $runId, $idsSelected);
       $log->info("TicketsJob: ids selecionados", ['run_id' => $runId, 'ids' => $idsSelected]);
 
+      // Sincroniza dimensão de tags sempre
+      TagsJob::syncTags($src, $dst, $log, $runId);
+
       if ($idsSelected === 0) {
         $validation = Validator::validateTickets($dst);
         EtlRun::finishSuccess($dst, $runId, $validation, "Nada a processar");
@@ -36,6 +46,9 @@ final class TicketsJob {
         $log->info("TicketsJob: fim (sem carga)", ['run_id' => $runId, 'elapsed_sec' => $elapsed]);
         return;
       }
+
+      // Sincroniza ponte ticket-tags para tickets impactados
+      TagsJob::syncTicketTagLinks($src, $dst, $log, $ids, $runId);
 
       $upSt = TicketsLoader::upsertStatement($dst);
 
@@ -50,12 +63,11 @@ final class TicketsJob {
         $upsertedThisBatch = 0;
 
         try {
-          while ($row = $srcSt->fetch()) {
+          while ($row = $srcSt->fetch(PDO::FETCH_ASSOC)) {
             $row = TicketsTransformer::normalize($row);
             $upSt->execute($row);
-            $upsertedThisBatch += (int)$upSt->rowCount(); // MySQL: geralmente 1 (insert) ou 2 (update)
+            $upsertedThisBatch += (int)$upSt->rowCount();
           }
-
           $dst->commit();
         } catch (Throwable $e) {
           $dst->rollBack();
@@ -74,10 +86,8 @@ final class TicketsJob {
         ]);
       }
 
-      // Atualiza checkpoint no final (sucesso)
       Checkpoint::set($dst, $entity, gmdate('Y-m-d H:i:s'));
 
-      // Validação pós carga
       $validation = Validator::validateTickets($dst);
 
       $elapsed = round(microtime(true) - $startedAt, 3);

@@ -453,3 +453,326 @@ Crie e popule a tabela dim_calendario.
 Altere a metabase_tickets para incluir a coluna data_id.
 Ajuste o TicketsExtractor.php para selecionar DATE(t.date) AS data_id.
 Ajuste o TicketsLoader.php para carregar o novo campo data_id.
+
+
+## 16) Calendário (dimensão de data) e regra de período (mês-calendário)
+
+Para padronizar análises no Metabase e evitar cálculos inconsistentes de “período”, este DW usa uma **tabela calendário** (`dim_calendario`) e todas as tabelas fato devem referenciar datas via uma **chave de data** (`data_id`).
+
+### 16.1 Regra de período (sempre mês-calendário)
+
+- Qualquer ticket criado em **01/2026** pertence ao período **2026-01**, **independente do dia**.
+- Não existe regra do tipo “a partir do dia 23 cai no mês seguinte/anterior”.
+- A referência única de período mensal vem de: `dim_calendario.ano_mes` (formato `YYYY-MM`).
+
+### 16.2 Tabela `dim_calendario` (dicionário de dados)
+
+Tabela: `dw_glpi.dim_calendario`
+
+- `data` (DATE, PK): chave do dia.
+- `ano` (INT)
+- `mes` (INT)
+- `dia` (INT)
+- `trimestre` (INT) — `1..4`
+- `semana_do_ano` (INT)
+- `dia_da_semana_num` (INT) — `1=Domingo ... 7=Sábado` (conforme `DAYOFWEEK()` do MySQL)
+- `dia_da_semana_nome` (VARCHAR)
+- `mes_nome` (VARCHAR)
+- `ano_mes` (VARCHAR(7)) — `YYYY-MM` (referência de período mensal)
+- `eh_fim_de_semana` (TINYINT) — `1` se sábado/domingo
+
+Índices:
+- `idx_cal_ano_mes (ano, mes)`
+- `idx_cal_ano_trimestre (ano, trimestre)`
+- `idx_cal_ano_semana (ano, semana_do_ano)`
+
+### 16.3 Como popular `dim_calendario` (sem procedure)
+
+O calendário é populado via **CTE recursivo** (`WITH RECURSIVE`) usando `INSERT ... WITH RECURSIVE ... SELECT`.
+
+> Observação: para intervalos grandes, é necessário aumentar o limite de recursão:  
+> `SET SESSION cte_max_recursion_depth = 10000;`
+
+Exemplo (2025-01-01 até 2030-12-31):
+
+```sql
+USE dw_glpi;
+
+SET SESSION cte_max_recursion_depth = 10000;
+
+TRUNCATE TABLE dim_calendario;
+
+INSERT INTO dim_calendario (
+  data,
+  ano,
+  mes,
+  dia,
+  trimestre,
+  semana_do_ano,
+  dia_da_semana_num,
+  dia_da_semana_nome,
+  mes_nome,
+  ano_mes,
+  eh_fim_de_semana
+)
+WITH RECURSIVE datas AS (
+  SELECT DATE('2025-01-01') AS d
+  UNION ALL
+  SELECT DATE_ADD(d, INTERVAL 1 DAY)
+  FROM datas
+  WHERE d < DATE('2030-12-31')
+)
+SELECT
+  d AS data,
+  YEAR(d) AS ano,
+  MONTH(d) AS mes,
+  DAY(d) AS dia,
+  QUARTER(d) AS trimestre,
+  WEEKOFYEAR(d) AS semana_do_ano,
+  DAYOFWEEK(d) AS dia_da_semana_num,
+  CASE DAYOFWEEK(d)
+    WHEN 1 THEN 'Domingo'
+    WHEN 2 THEN 'Segunda-feira'
+    WHEN 3 THEN 'Terça-feira'
+    WHEN 4 THEN 'Quarta-feira'
+    WHEN 5 THEN 'Quinta-feira'
+    WHEN 6 THEN 'Sexta-feira'
+    WHEN 7 THEN 'Sábado'
+  END AS dia_da_semana_nome,
+  CASE MONTH(d)
+    WHEN 1 THEN 'Janeiro'
+    WHEN 2 THEN 'Fevereiro'
+    WHEN 3 THEN 'Março'
+    WHEN 4 THEN 'Abril'
+    WHEN 5 THEN 'Maio'
+    WHEN 6 THEN 'Junho'
+    WHEN 7 THEN 'Julho'
+    WHEN 8 THEN 'Agosto'
+    WHEN 9 THEN 'Setembro'
+    WHEN 10 THEN 'Outubro'
+    WHEN 11 THEN 'Novembro'
+    WHEN 12 THEN 'Dezembro'
+  END AS mes_nome,
+  DATE_FORMAT(d, '%Y-%m') AS ano_mes,
+  IF(DAYOFWEEK(d) IN (1,7), 1, 0) AS eh_fim_de_semana
+FROM datas;
+```
+
+Validação rápida:
+
+```sql
+SELECT COUNT(*) AS total, MIN(data) AS inicio, MAX(data) AS fim
+FROM dim_calendario;
+```
+
+### 16.4 Referência de data nas tabelas fato (ex.: tickets)
+
+Tabela: `dw_glpi.metabase_tickets`
+
+- `data_id` (DATE): referência para `dim_calendario.data`
+- Derivação no ETL: `data_id = DATE(glpi_tickets.date)`
+
+Relacionamento lógico (Metabase):
+- `metabase_tickets.data_id` → `dim_calendario.data`
+
+A partir disso, agrupamentos por mês, trimestre, ano e semana devem usar:
+- `dim_calendario.ano_mes`
+- `dim_calendario.trimestre`
+- `dim_calendario.ano`
+- `dim_calendario.semana_do_ano`
+
+### 16.5 Recomendações de modelagem no Metabase
+
+- Marcar `dim_calendario` como **tabela de dimensão**.
+- Criar relacionamento 1:N: `dim_calendario.data` (1) → `metabase_tickets.data_id` (N).
+- Criar campos “representativos”:
+  - `ano_mes` como campo padrão de agrupamento mensal.
+  - `dia_da_semana_nome` para análises de volume por dia da semana.
+
+### 16.6 Sanity checks pós-carga (tickets x calendário)
+
+1) Tickets fora do intervalo do calendário (não deveria acontecer):
+```sql
+SELECT COUNT(*) AS fora_intervalo
+FROM metabase_tickets t
+LEFT JOIN dim_calendario c ON c.data = t.data_id
+WHERE t.data_id IS NOT NULL AND c.data IS NULL;
+```
+
+2) Exemplo de agregação por mês (padrão correto):
+```sql
+SELECT c.ano_mes, COUNT(*) AS qtd
+FROM metabase_tickets t
+JOIN dim_calendario c ON c.data = t.data_id
+GROUP BY c.ano_mes
+ORDER BY c.ano_mes;
+```
+
+## 17) Justificativa dos índices (DW `dw_glpi`)
+
+Esta seção documenta **por que** cada índice existe, quais consultas ele acelera e quais trade-offs foram considerados.  
+Objetivo: garantir performance no Metabase (filtros, drill-down, agrupamentos) sem criar overhead excessivo de escrita no ETL.
+
+### 17.1 Princípios usados para definir índices
+
+- **Metabase filtra e agrupa muito**: índices são priorizados em campos usados como filtro (status, cliente, grupo, data) e em chaves de relacionamento (`data_id`, IDs).
+- **Evitar “índice para tudo”**: índices demais aumentam custo de `INSERT/UPSERT` e podem degradar a carga.
+- **Preferência por índices compostos** quando o padrão de consulta envolve múltiplas colunas na mesma cláusula `WHERE`/`GROUP BY`.
+- **Datas são críticas**: análises por dia/mês/semana dependem do eixo temporal, então datas sempre recebem atenção.
+- **Campos textuais grandes**: índices em `VARCHAR` são usados com parcimônia; quando necessário, visam campos de filtro recorrentes (ex.: grupo e cliente).
+
+---
+
+## 17.2 Índices da tabela fato `dw_glpi.metabase_tickets`
+
+### 17.2.1 Chave primária
+- `PRIMARY KEY (chamado)`
+  - **Por quê**: garante unicidade e permite `UPSERT` eficiente (`ON DUPLICATE KEY UPDATE`) usando o ID do ticket do GLPI.
+  - **Impacto no Metabase**: acelera drill-down por ticket e joins futuros com dimensões (se existirem).
+
+### 17.2.2 Índices de status e operação
+- `idx_tickets_status (status_chamado)`
+  - **Consultas típicas**:
+    - tickets abertos/fechados por status
+    - backlog por status
+  - **Justificativa**: `status_chamado` é um dos filtros mais comuns no Metabase.
+
+### 17.2.3 Índices por cliente/entidade
+- `idx_tickets_cliente (entidade_cliente)`
+  - **Consultas típicas**:
+    - volume por cliente
+    - SLA por cliente
+  - **Justificativa**: `entidade_cliente` é dimensão recorrente para segmentação.
+
+### 17.2.4 Índices por grupo (hierarquia)
+- `idx_tickets_grupo (grupo_solucionador)`
+- `idx_tickets_grupo_nome (grupo_solucionador_nome)`
+- `idx_tickets_grupo_id (id_grupo_solucionador)`
+  - **Consultas típicas**:
+    - volume e SLA por torre/fila
+    - comparativos entre filas
+    - drill-down para um grupo específico
+  - **Justificativa**:
+    - `grupo_solucionador` (completename) melhora filtros hierárquicos no Metabase
+    - `grupo_solucionador_nome` é útil para visões “curtas” (nível folha)
+    - `id_grupo_solucionador` é o melhor candidato para relacionamento com uma futura dimensão de grupos (join por ID é mais eficiente que join por texto)
+
+### 17.2.5 Índices por técnico
+- `idx_tickets_tecnico (nome_tecnico_responsavel)`
+  - **Consultas típicas**:
+    - produtividade por técnico
+    - SLA por técnico
+  - **Justificativa**: apesar de ser textual, é filtro comum em operação/gestão.
+
+### 17.2.6 Índices por datas do ticket
+- `idx_tickets_datas (data_criacao, data_solucao, data_fechamento)`
+  - **Consultas típicas**:
+    - tickets criados/solucionados/fechados em intervalo
+    - tendência mensal/diária usando datas do evento (quando não se usa `data_id`)
+  - **Justificativa**: acelera buscas por janelas de tempo quando a análise usa diretamente as datas do ticket.
+
+- `idx_tickets_date_mod (data_ultima_atualizacao)`
+  - **Uso principal**: facilita rastreamento e investigações.  
+  - **Nota**: o ETL incremental normalmente usa checkpoint na origem; este índice é mais útil para consultas no DW e auditoria.
+
+- `idx_tickets_data_id (data_id)`
+  - **Consultas típicas**:
+    - join com `dim_calendario` para análises por mês/semana/trimestre
+    - filtros por período (via `dim_calendario.ano_mes`)
+  - **Justificativa**: é o eixo temporal padrão do DW (data do ticket normalizada para dia).
+
+### 17.2.7 Índices de SLA e risco
+- `idx_tickets_sla (status_sla, sla_risco, limite_solucao)`
+  - **Consultas típicas**:
+    - “SLA em risco” e “fora do prazo”
+    - painéis de acompanhamento por risco
+  - **Justificativa**:
+    - `status_sla` e `sla_risco` são filtros recorrentes
+    - `limite_solucao` ajuda análises por janela de vencimento (tickets vencendo em X horas)
+
+### 17.2.8 Índices de aging
+- `idx_tickets_aging (aging_minutos)`
+  - **Consultas típicas**:
+    - tickets com maior aging
+    - backlog com aging acima de X
+  - **Justificativa**: acelera filtros por “idade” do ticket (muito usado em operação).
+
+### 17.2.9 Índices do catálogo (serviços)
+- `idx_tickets_catalogo (categoria, subcategoria, servico)`
+  - **Consultas típicas**:
+    - volume/SLA por categoria/subcategoria/serviço
+    - drill-down hierárquico do catálogo
+  - **Justificativa**: índice composto atende bem cenários de filtro por níveis (começando por `categoria`).
+
+### 17.2.10 Índice de auditoria de carga
+- `idx_tickets_data_carga (data_carga)`
+  - **Consultas típicas**:
+    - auditoria do que foi atualizado recentemente
+    - validação de “última carga”
+  - **Justificativa**: dá rastreabilidade e facilita troubleshooting no DW.
+
+---
+
+## 17.3 Índices da dimensão `dw_glpi.dim_calendario`
+
+- `PRIMARY KEY (data)`
+  - **Por quê**: garante unicidade do dia e torna join por `data_id` extremamente eficiente.
+
+- `idx_cal_ano_mes (ano, mes)`
+  - **Consultas típicas**:
+    - filtros por ano e mês
+    - agrupamentos e comparativos mensais
+  - **Justificativa**: acelera queries de séries temporais por mês.
+
+- `idx_cal_ano_trimestre (ano, trimestre)`
+  - **Consultas típicas**:
+    - análises trimestrais (Q1–Q4)
+  - **Justificativa**: reduz custo de agregação por trimestre.
+
+- `idx_cal_ano_semana (ano, semana_do_ano)` *(se criado)*
+  - **Consultas típicas**:
+    - análises semanais (week-of-year)
+  - **Justificativa**: comum em operação (comparar semanas e sazonalidade).
+
+---
+
+## 17.4 Índices das tabelas de auditoria (`etl_run`, `etl_error`, `etl_checkpoint`)
+
+### 17.4.1 `etl_run`
+- `idx_etl_run_entity (entity_name, started_at)`
+  - **Por quê**: permite consultar histórico de execuções por entidade (ex.: tickets) ordenado por tempo.
+
+- `idx_etl_run_status (status, started_at)`
+  - **Por quê**: facilita “mostrar execuções com erro” e investigar falhas recentes.
+
+### 17.4.2 `etl_error`
+- `idx_etl_error_run (run_id)`
+  - **Por quê**: listar erros de uma execução específica rapidamente.
+
+- `idx_etl_error_entity (entity_name, error_at)`
+  - **Por quê**: investigar erros por entidade e por período.
+
+### 17.4.3 `etl_checkpoint`
+- `PRIMARY KEY (entity_name)`
+  - **Por quê**: leitura/escrita do checkpoint é por entidade e deve ser O(1).
+
+---
+
+## 17.5 Trade-offs e ajustes futuros
+
+- Se a carga começar a ficar lenta, revisar:
+  - índices textuais (`nome_tecnico_responsavel`, `grupo_solucionador`, `entidade_cliente`)
+  - cardinalidade e seletividade (índices pouco seletivos podem não ajudar)
+- Se o Metabase passar a fazer muitas análises por `ano_mes`, considerar materializar `ano_mes` também na fato (desnormalização) ou criar view `v_tickets_com_calendario`.
+
+
+Você vai ter duas formas de tags no DW:
+
+metabase_tickets.tags (string agregada para filtros simples)
+dim_tags + bridge_ticket_tags (modelagem correta many-to-many para BI)
+
+
+Os arquivos envolvidos são:
+
+Novos: TagsExtractor.php, TagsLoader.php, TagsJob.php
+Alterados: TicketsExtractor.php, TicketsJob.php, bin/etl.php (includes)
