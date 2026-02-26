@@ -5,7 +5,7 @@ final class ProblemsJob {
     $runId = EtlRun::start($dst, $entity, $mode, $windowFullDays, $batchSize, ['metabase_problems']);
 
     try {
-      $lastUtc = Checkpoint::getLastSuccessUtc($dst, $entity);
+      $lastUtc = Checkpoint::get($dst, $entity);
       if (!$lastUtc || $mode === 'full') {
         $lastUtc = '1970-01-01 00:00:00';
       }
@@ -32,7 +32,7 @@ final class ProblemsJob {
       $validation = Validator::validateRun($dst, 'metabase_problems', $rowsUpserted);
       EtlRun::finishSuccess($dst, $runId, $validation);
 
-      Checkpoint::upsertCheckpointNow($dst, $entity);
+      Checkpoint::set($dst, $entity, date('Y-m-d H:i:s'));
 
     } catch (Throwable $e) {
       EtlError::log($dst, $runId, $entity, $e->getMessage(), [
