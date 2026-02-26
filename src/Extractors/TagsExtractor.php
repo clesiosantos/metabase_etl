@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 final class TagsExtractor {
   public static function fetchAllTags(PDO $src): PDOStatement {
     $sql = "

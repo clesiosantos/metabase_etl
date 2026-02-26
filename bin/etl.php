@@ -1,35 +1,32 @@
 <?php
-// bin/etl.php
+declare(strict_types=1);
 
 date_default_timezone_set('UTC');
 
-require_once __DIR__ . '/../src/Config.php';
-require_once __DIR__ . '/../src/Logger.php';
-require_once __DIR__ . '/../src/Db.php';
+require_once __DIR__ . '/../config/config.php';
 
-// Auditoria ETL
+require_once __DIR__ . '/../src/Db.php';
+require_once __DIR__ . '/../src/Logger.php';
+require_once __DIR__ . '/../src/Lock.php';
+require_once __DIR__ . '/../src/Checkpoint.php';
 require_once __DIR__ . '/../src/EtlRun.php';
 require_once __DIR__ . '/../src/EtlError.php';
-require_once __DIR__ . '/../src/Checkpoint.php';
 require_once __DIR__ . '/../src/Validator.php';
 
-// Tickets
-require_once __DIR__ . '/../src/Extractors/TicketsExtractor.php';
-require_once __DIR__ . '/../src/Loaders/TicketsLoader.php';
 require_once __DIR__ . '/../src/Transformers/TicketsTransformer.php';
 
-// TAGS (CRÍTICO: deve estar antes de Jobs que chamam TagsJob)
+require_once __DIR__ . '/../src/Extractors/TicketsExtractor.php';
+require_once __DIR__ . '/../src/Loaders/TicketsLoader.php';
+
 require_once __DIR__ . '/../src/Extractors/TagsExtractor.php';
 require_once __DIR__ . '/../src/Loaders/TagsLoader.php';
-require_once __DIR__ . '/../src/Jobs/TagsJob.php';
+require_once __DIR__ . '/../src/Jobs/TagsJobs.php';
 
-// Jobs
 require_once __DIR__ . '/../src/Jobs/TicketsJob.php';
+require_once __DIR__ . '/../src/TicketsEtl.php';
 
 function usage(): void {
-  $msg = "Uso:\n"
-    . "  php bin/etl.php tickets [--full]\n";
-  fwrite(STDERR, $msg);
+  fwrite(STDERR, "Uso:\n  php bin/etl.php tickets [--full]\n");
 }
 
 $args = $argv;
@@ -43,18 +40,26 @@ if (!$entity) {
   exit(1);
 }
 
-$cfg = Config::load(__DIR__ . '/../config/config.php');
-$log = new Logger();
+$log = new Logger(__DIR__ . '/../logs/etl.log');
 
-$src = Db::connect($cfg['glpi']);   // conexão origem
-$dst = Db::connect($cfg['dw']);     // conexão dw_glpi
+try {
+  $src = Db::connect($GLPI_DB);
+  $dst = Db::connect($DW_DB);
 
-switch ($entity) {
-  case 'tickets':
-    TicketsJob::run($src, $dst, $log, $cfg, $mode);
-    break;
+  // lock global (opcional, se seu Lock.php já faz isso em TicketsEtl)
+  // Lock::acquire($dst, 'etl_glpi_metabase', 10);
 
-  default:
-    usage();
-    exit(1);
+  switch ($entity) {
+    case 'tickets':
+      TicketsEtl::run($src, $dst, $log, $mode);
+      break;
+    default:
+      usage();
+      exit(1);
+  }
+
+  // Lock::release($dst, 'etl_glpi_metabase');
+} catch (Throwable $e) {
+  $log->error('ETL fatal', ['message' => $e->getMessage()]);
+  throw $e;
 }

@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 final class TagsLoader {
   public static function upsertDimTags(PDO $dst): PDOStatement {
     $sql = "
@@ -31,7 +33,9 @@ final class TagsLoader {
   }
 
   public static function deleteTicketLinks(PDO $dst, array $ticketIds): void {
-    if (!$ticketIds) return;
+    if (!$ticketIds) {
+      return;
+    }
 
     $placeholders = implode(',', array_fill(0, count($ticketIds), '?'));
     $sql = "DELETE FROM bridge_ticket_tags WHERE ticket_id IN ($placeholders)";

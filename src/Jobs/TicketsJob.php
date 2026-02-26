@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 final class TicketsJob {
   public static function run(PDO $src, PDO $dst, Logger $log, array $cfg, string $mode = 'incremental'): void {
     $entity = 'tickets';
@@ -27,11 +29,7 @@ final class TicketsJob {
         ? '1970-01-01 00:00:00'
         : (Checkpoint::get($dst, $entity) ?? '1970-01-01 00:00:00');
 
-      $log->info("TicketsJob: janela", [
-        'run_id' => $runId,
-        'checkpoint_last' => $last,
-        'full_start' => $fullStart
-      ]);
+      $log->info("TicketsJob: janela", ['run_id' => $runId, 'checkpoint_last' => $last, 'full_start' => $fullStart]);
 
       $ids = TicketsExtractor::fetchChangedIds($src, $last, $fullStart);
       $idsSelected = count($ids);
@@ -39,12 +37,18 @@ final class TicketsJob {
       EtlRun::setSelected($dst, $runId, $idsSelected);
       $log->info("TicketsJob: ids selecionados", ['run_id' => $runId, 'ids' => $idsSelected]);
 
-      // 1) Sincroniza dimensão de tags sempre (rápido e mantém dim atualizada)
-      TagsJob::syncTags($src, $dst, $log, $runId);
+      // TAGS: sincroniza dimensão sempre
+      $dimCount = TagsJobs::syncDimTags($src, $dst);
+      $log->info("TicketsJob: dim_tags sincronizada", ['run_id' => $runId, 'tags' => $dimCount]);
 
-      // 2) Se houver tickets impactados, sincroniza os vínculos ticket↔tag só desses tickets
+      // TAGS: atualiza ponte só para os tickets impactados
       if ($idsSelected > 0) {
-        TagsJob::syncTicketTagLinks($src, $dst, $log, $ids, $runId);
+        $linkCount = TagsJobs::refreshTicketLinks($src, $dst, $ids);
+        $log->info("TicketsJob: bridge_ticket_tags sincronizada", [
+          'run_id' => $runId,
+          'tickets' => $idsSelected,
+          'links' => $linkCount
+        ]);
       }
 
       if ($idsSelected === 0) {
@@ -108,12 +112,7 @@ final class TicketsJob {
       EtlRun::finishSuccess($dst, $runId, $validation, "Carga finalizada em {$elapsed}s");
     } catch (Throwable $e) {
       $elapsed = round(microtime(true) - $startedAt, 3);
-      $log->error("TicketsJob: falhou", [
-        'run_id' => $runId ?? null,
-        'elapsed_sec' => $elapsed,
-        'message' => $e->getMessage()
-      ]);
-
+      $log->error("TicketsJob: falhou", ['run_id' => $runId ?? null, 'elapsed_sec' => $elapsed, 'message' => $e->getMessage()]);
       if (isset($runId) && $runId > 0) {
         EtlRun::finishFailed($dst, $runId, $e->getMessage(), ['elapsed_sec' => $elapsed]);
       }

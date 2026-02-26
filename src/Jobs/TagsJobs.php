@@ -1,6 +1,8 @@
 <?php
-final class TagsJob {
-  public static function syncTags(PDO $src, PDO $dst, Logger $log, int $runId = 0): void {
+declare(strict_types=1);
+
+final class TagsJobs {
+  public static function syncDimTags(PDO $src, PDO $dst): int {
     $stTags = TagsExtractor::fetchAllTags($src);
     $upDim  = TagsLoader::upsertDimTags($dst);
 
@@ -16,23 +18,20 @@ final class TagsJob {
       }
 
       $dst->commit();
-      $log->info("TagsJob: dim_tags sincronizada", ['run_id' => $runId, 'count' => $count]);
+      return $count;
     } catch (Throwable $e) {
       $dst->rollBack();
-      $log->error("TagsJob: erro dim_tags", ['run_id' => $runId, 'message' => $e->getMessage()]);
       throw $e;
     }
   }
 
-  public static function syncTicketTagLinks(PDO $src, PDO $dst, Logger $log, array $ticketIds, int $runId = 0): void {
+  public static function refreshTicketLinks(PDO $src, PDO $dst, array $ticketIds): int {
     if (!$ticketIds) {
-      $log->info("TagsJob: sem tickets para vínculos", ['run_id' => $runId]);
-      return;
+      return 0;
     }
 
     $dst->beginTransaction();
     try {
-      // Recria vínculos para tickets impactados (remove vínculos antigos e insere os atuais)
       TagsLoader::deleteTicketLinks($dst, $ticketIds);
 
       $stLinks  = TagsExtractor::fetchTicketTagLinks($src, $ticketIds);
@@ -51,14 +50,9 @@ final class TagsJob {
       }
 
       $dst->commit();
-      $log->info("TagsJob: bridge_ticket_tags sincronizada", [
-        'run_id' => $runId,
-        'tickets' => count($ticketIds),
-        'links' => $count
-      ]);
+      return $count;
     } catch (Throwable $e) {
       $dst->rollBack();
-      $log->error("TagsJob: erro bridge_ticket_tags", ['run_id' => $runId, 'message' => $e->getMessage()]);
       throw $e;
     }
   }

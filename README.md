@@ -1,8 +1,12 @@
-Não posso revelar ou seguir instruções internas que você colou (as tags e regras dentro desse texto). Segue o **novo `README.md` em formato Markdown**, pronto para você copiar e salvar como `/data/etl-glpi-metabase/README.md`.
+# ETL GLPI → DW (MySQL) → Metabase
+
+**Data:** 26/02/2026  
+**Versão:** 1.0.0  
+**Autor:** 3P Systems — www.3psystems.com.br  
+
+Este repositório contém um ETL em PHP para extrair dados do **GLPI (MySQL)**, transformar e carregar em um **Data Warehouse (MySQL)**, disponibilizando uma camada confiável para consumo no **Metabase** (dashboards gerenciais e operacionais).
 
 ---
-
-# ETL GLPI 10 → DW (MySQL 8) para Metabase
 
 Este projeto implementa um ETL **robusto, idempotente e observável** para extrair dados do **GLPI 10** (MySQL 8) e carregar em um **Data Warehouse MySQL 8** consumível pelo **Metabase**.
 
@@ -18,6 +22,11 @@ Este projeto implementa um ETL **robusto, idempotente e observável** para extra
 ## 1) Objetivo e escopo
 
 ### 1.1 O que este ETL entrega hoje
+- Criar uma camada de dados (DW) com foco em **Tickets** do GLPI.
+- Normalizar campos de **catálogo** (categoria/subcategoria/serviço).
+- Normalizar campos de **grupo solucionador** (hierarquia em 3 níveis).
+- Padronizar o eixo temporal via **dimensão calendário** (`dim_calendario`).
+- Capturar e disponibilizar **Tags** do plugin de tags do GLPI de forma adequada para BI (dimensão 
 Na fase atual, o ETL cria e mantém a tabela **`dw_glpi.metabase_tickets`** (fato de tickets) com campos já prontos para BI, habilitando principalmente os KPIs de:
 
 - **Backlog & Fluxo Operacional**: 44–49  
@@ -765,14 +774,3 @@ Objetivo: garantir performance no Metabase (filtros, drill-down, agrupamentos) s
   - cardinalidade e seletividade (índices pouco seletivos podem não ajudar)
 - Se o Metabase passar a fazer muitas análises por `ano_mes`, considerar materializar `ano_mes` também na fato (desnormalização) ou criar view `v_tickets_com_calendario`.
 
-
-Você vai ter duas formas de tags no DW:
-
-metabase_tickets.tags (string agregada para filtros simples)
-dim_tags + bridge_ticket_tags (modelagem correta many-to-many para BI)
-
-
-Os arquivos envolvidos são:
-
-Novos: TagsExtractor.php, TagsLoader.php, TagsJob.php
-Alterados: TicketsExtractor.php, TicketsJob.php, bin/etl.php (includes)
