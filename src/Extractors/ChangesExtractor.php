@@ -5,10 +5,15 @@ final class ChangesExtractor {
       SELECT DISTINCT id
       FROM glpi_changes
       WHERE is_deleted = 0
-        AND date_mod >= ?
+        AND (
+          date_mod >= ?
+          OR `date` >= ?
+          OR solvedate >= ?
+          OR closedate >= ?
+        )
     ";
     $st = $src->prepare($sql);
-    $st->execute([$lastUtc]);
+    $st->execute([$lastUtc, $fullStartUtc, $fullStartUtc, $fullStartUtc]);
     return array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
   }
 

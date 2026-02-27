@@ -4,7 +4,9 @@
    Inclui:
    - Auditoria ETL: etl_run, etl_error, etl_checkpoint
    - Calendário: dim_calendario (povoamento via CTE é separado)
-   - Fato Tickets: metabase_tickets (com colunas TTO/TTR adicionadas)
+   - Fato Tickets: metabase_tickets
+   - Fato Mudanças: metabase_changes
+   - Fato Problemas: metabase_problems
    - Tags: dim_tags + bridge_ticket_tags
    - Views: v_tickets_abertos, v_tickets_sla_risco, v_tickets_ultimos_15_dias
    ============================================================ */
@@ -29,6 +31,8 @@ DROP TABLE IF EXISTS bridge_ticket_tags;
 DROP TABLE IF EXISTS dim_tags;
 
 DROP TABLE IF EXISTS metabase_tickets;
+DROP TABLE IF EXISTS metabase_changes;
+DROP TABLE IF EXISTS metabase_problems;
 
 DROP TABLE IF EXISTS dim_calendario;
 
@@ -46,7 +50,7 @@ CREATE TABLE etl_run (
   finished_at DATETIME NULL,
   status VARCHAR(20) NOT NULL,              /* RUNNING | SUCCESS | FAILED */
   mode VARCHAR(20) NOT NULL,                /* incremental | full */
-  entity_name VARCHAR(50) NOT NULL,         /* tickets */
+  entity_name VARCHAR(50) NOT NULL,         /* tickets | changes | problems */
   window_full_days INT NOT NULL DEFAULT 15,
   batch_size INT NOT NULL DEFAULT 1000,
   tables_updated VARCHAR(500) NULL,
@@ -128,12 +132,7 @@ CREATE TABLE bridge_ticket_tags (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 /* ============================================================
-   4) Fato: Tickets (BI-ready) - COM COLUNAS TTO/TTR ADICIONADAS
-   Observações:
-   - grupo_solucionador = glpi_groups.completename
-   - grupo_solucionador_nome = glpi_groups.name
-   - data_id = DATE(glpi_tickets.date) para join com dim_calendario
-   - tags (string) continua como conveniência, além da ponte de tags
+   4) Fato: Tickets (BI-ready)
    ============================================================ */
 
 CREATE TABLE metabase_tickets (
@@ -215,32 +214,144 @@ CREATE TABLE metabase_tickets (
 
   INDEX idx_tickets_status (status_chamado),
   INDEX idx_tickets_cliente (entidade_cliente),
-
   INDEX idx_tickets_grupo (grupo_solucionador),
-  INDEX idx_tickets_grupo_nome (grupo_solucionador_nome),
-  INDEX idx_tickets_grupo_id (id_grupo_solucionador),
-
   INDEX idx_tickets_tecnico (nome_tecnico_responsavel),
-
   INDEX idx_tickets_datas (data_criacao, data_solucao, data_fechamento),
-  INDEX idx_tickets_date_mod (data_ultima_atualizacao),
   INDEX idx_tickets_data_id (data_id),
-
   INDEX idx_tickets_sla (status_sla, sla_risco, limite_solucao),
   INDEX idx_tickets_aging (aging_minutos),
-
   INDEX idx_tickets_catalogo (categoria, subcategoria, servico),
-  INDEX idx_tickets_data_carga (data_carga),
-
-  /* ÍNDICES PARA NOVAS COLUNAS TTO/TTR */
-  INDEX idx_tickets_tto_status (tto_status),
-  INDEX idx_tickets_ttr_status (ttr_status),
-  INDEX idx_tickets_tto_em_risco (tto_em_risco),
-  INDEX idx_tickets_ttr_em_risco (ttr_em_risco)
+  INDEX idx_tickets_data_carga (data_carga)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 /* ============================================================
-   5) Views (Metabase)
+   5) Fato: Mudanças (metabase_changes)
+   ============================================================ */
+
+CREATE TABLE metabase_changes (
+  chamado INT NOT NULL,
+
+  titulo_chamado VARCHAR(255) NULL,
+
+  data_criacao DATETIME NULL,
+  data_solucao DATETIME NULL,
+  data_fechamento DATETIME NULL,
+  data_ultima_atualizacao DATETIME NULL,
+  data_id DATE NULL,
+
+  status_chamado VARCHAR(30) NULL,
+
+  prioridade VARCHAR(30) NULL,
+  urgencia VARCHAR(30) NULL,
+  impacto VARCHAR(30) NULL,
+
+  ttr_status VARCHAR(50) NULL,
+  ttr_em_risco TINYINT(1) NOT NULL DEFAULT 0,
+  limite_solucao DATETIME NULL,
+
+  mttr_minutos DECIMAL(12,2) NULL,
+  aging_minutos DECIMAL(12,2) NULL,
+
+  servico_completo VARCHAR(255) NULL,
+  categoria VARCHAR(255) NULL,
+  subcategoria VARCHAR(255) NULL,
+  servico VARCHAR(255) NULL,
+
+  grupo_solucionador VARCHAR(255) NULL,
+  grupo_solucionador_nome VARCHAR(255) NULL,
+  id_grupo_solucionador INT NULL,
+
+  tipo_contrato VARCHAR(255) NULL,
+  grupo_solucao VARCHAR(255) NULL,
+  tipo_atividade VARCHAR(255) NULL,
+
+  agente_solucionador VARCHAR(255) NULL,
+  nome_solicitante VARCHAR(255) NULL,
+
+  entidade_cliente VARCHAR(255) NULL,
+  localizacao_fisica VARCHAR(255) NULL,
+
+  tags VARCHAR(1000) NULL,
+
+  users_id_recipient INT NULL,
+  locations_id INT NULL,
+
+  data_carga DATETIME NOT NULL,
+
+  PRIMARY KEY (chamado),
+  INDEX idx_changes_status (status_chamado),
+  INDEX idx_changes_cliente (entidade_cliente),
+  INDEX idx_changes_grupo (grupo_solucionador),
+  INDEX idx_changes_datas (data_criacao, data_solucao, data_fechamento),
+  INDEX idx_changes_data_id (data_id),
+  INDEX idx_changes_data_carga (data_carga)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+/* ============================================================
+   6) Fato: Problemas (metabase_problems)
+   ============================================================ */
+
+CREATE TABLE metabase_problems (
+  chamado INT NOT NULL,
+
+  titulo_chamado VARCHAR(255) NULL,
+
+  data_criacao DATETIME NULL,
+  data_solucao DATETIME NULL,
+  data_fechamento DATETIME NULL,
+  data_ultima_atualizacao DATETIME NULL,
+  data_id DATE NULL,
+
+  status_chamado VARCHAR(30) NULL,
+
+  prioridade VARCHAR(30) NULL,
+  urgencia VARCHAR(30) NULL,
+  impacto VARCHAR(30) NULL,
+
+  ttr_status VARCHAR(50) NULL,
+  ttr_em_risco TINYINT(1) NOT NULL DEFAULT 0,
+  limite_solucao DATETIME NULL,
+
+  mttr_minutos DECIMAL(12,2) NULL,
+  aging_minutos DECIMAL(12,2) NULL,
+
+  servico_completo VARCHAR(255) NULL,
+  categoria VARCHAR(255) NULL,
+  subcategoria VARCHAR(255) NULL,
+  servico VARCHAR(255) NULL,
+
+  grupo_solucionador VARCHAR(255) NULL,
+  grupo_solucionador_nome VARCHAR(255) NULL,
+  id_grupo_solucionador INT NULL,
+
+  tipo_contrato VARCHAR(255) NULL,
+  grupo_solucao VARCHAR(255) NULL,
+  tipo_atividade VARCHAR(255) NULL,
+
+  agente_solucionador VARCHAR(255) NULL,
+  nome_solicitante VARCHAR(255) NULL,
+
+  entidade_cliente VARCHAR(255) NULL,
+  localizacao_fisica VARCHAR(255) NULL,
+
+  tags VARCHAR(1000) NULL,
+
+  users_id_recipient INT NULL,
+  locations_id INT NULL,
+
+  data_carga DATETIME NOT NULL,
+
+  PRIMARY KEY (chamado),
+  INDEX idx_problems_status (status_chamado),
+  INDEX idx_problems_cliente (entidade_cliente),
+  INDEX idx_problems_grupo (grupo_solucionador),
+  INDEX idx_problems_datas (data_criacao, data_solucao, data_fechamento),
+  INDEX idx_problems_data_id (data_id),
+  INDEX idx_problems_data_carga (data_carga)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+/* ============================================================
+   7) Views (Metabase)
    ============================================================ */
 
 CREATE VIEW v_tickets_abertos AS
@@ -262,8 +373,7 @@ FROM metabase_tickets
 WHERE data_criacao >= (UTC_TIMESTAMP() - INTERVAL 15 DAY);
 
 /* ============================================================
-   6) POPULAR CALENDÁRIO (executar depois do DDL)
-   Exemplo (2025-01-01 .. 2030-12-31) - SEM PROCEDURE
+   8) POPULAR CALENDÁRIO (executar depois do DDL)
    ============================================================ */
 
 /*
