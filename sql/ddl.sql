@@ -1,5 +1,5 @@
 /* ============================================================
-   DW GLPI - DDL COMPLETO (AJUSTADO PARA TTO/TTR E FAIXAS DE ATUALIZAÇÃO)
+   DW GLPI - DDL COMPLETO (AJUSTADO COM FAIXAS DE AGING E ATUALIZAÇÃO)
    ============================================================ */
 
 CREATE DATABASE IF NOT EXISTS dw_glpi
@@ -130,9 +130,10 @@ CREATE TABLE metabase_tickets (
   aging_minutos DECIMAL(12,2) NULL,
   tempo_espera_minutos DECIMAL(12,2) NULL,
   
-  /* Colunas de Atualização */
+  /* Colunas de Faixas (Buckets) */
   dias_sem_atualizacao INT NULL,
   faixa_sem_atualizacao VARCHAR(50) NULL,
+  faixa_aging VARCHAR(50) NULL,
 
   servico_completo VARCHAR(255) NULL,
   categoria VARCHAR(255) NULL,
@@ -161,7 +162,8 @@ CREATE TABLE metabase_tickets (
   PRIMARY KEY (chamado),
   INDEX idx_tickets_status (status_chamado),
   INDEX idx_tickets_data_id (data_id),
-  INDEX idx_tickets_faixa_upd (faixa_sem_atualizacao)
+  INDEX idx_tickets_faixa_upd (faixa_sem_atualizacao),
+  INDEX idx_tickets_faixa_aging (faixa_aging)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE metabase_changes (
@@ -257,7 +259,7 @@ CREATE TABLE metabase_problems (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE VIEW v_tickets_abertos AS
-SELECT * FROM metabase_tickets WHERE status_chamado <> 'Fechado';
+SELECT * FROM metabase_tickets WHERE status_chamado NOT IN ('Solucionado', 'Fechado');
 
 CREATE VIEW v_tickets_sla_risco AS
 SELECT * FROM metabase_tickets WHERE sla_risco = 1 OR status_sla = 'SLA FORA DO PRAZO' OR tto_em_risco = 1 OR ttr_em_risco = 1;
