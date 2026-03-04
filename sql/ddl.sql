@@ -1,5 +1,5 @@
 /* ============================================================
-   DW GLPI - DDL COMPLETO (AJUSTADO COM FAIXAS DE AGING E ATUALIZAÇÃO)
+   DW GLPI - DDL COMPLETO (AJUSTADO COM CANAL E FAIXAS)
    ============================================================ */
 
 CREATE DATABASE IF NOT EXISTS dw_glpi
@@ -114,6 +114,7 @@ CREATE TABLE metabase_tickets (
   prioridade VARCHAR(30) NULL,
   urgencia VARCHAR(30) NULL,
   impacto VARCHAR(30) NULL,
+  canal VARCHAR(100) NULL,
   status_sla VARCHAR(50) NULL,
   tto_status VARCHAR(20) NULL,
   ttr_status VARCHAR(20) NULL,
@@ -129,12 +130,9 @@ CREATE TABLE metabase_tickets (
   mttr_minutos DECIMAL(12,2) NULL,
   aging_minutos DECIMAL(12,2) NULL,
   tempo_espera_minutos DECIMAL(12,2) NULL,
-  
-  /* Colunas de Faixas (Buckets) */
   dias_sem_atualizacao INT NULL,
   faixa_sem_atualizacao VARCHAR(50) NULL,
   faixa_aging VARCHAR(50) NULL,
-
   servico_completo VARCHAR(255) NULL,
   categoria VARCHAR(255) NULL,
   subcategoria VARCHAR(255) NULL,
@@ -162,8 +160,7 @@ CREATE TABLE metabase_tickets (
   PRIMARY KEY (chamado),
   INDEX idx_tickets_status (status_chamado),
   INDEX idx_tickets_data_id (data_id),
-  INDEX idx_tickets_faixa_upd (faixa_sem_atualizacao),
-  INDEX idx_tickets_faixa_aging (faixa_aging)
+  INDEX idx_tickets_canal (canal)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE metabase_changes (
@@ -183,11 +180,8 @@ CREATE TABLE metabase_changes (
   limite_solucao DATETIME NULL,
   mttr_minutos DECIMAL(12,2) NULL,
   aging_minutos DECIMAL(12,2) NULL,
-  
-  /* Colunas de Atualização */
   dias_sem_atualizacao INT NULL,
   faixa_sem_atualizacao VARCHAR(50) NULL,
-
   servico_completo VARCHAR(255) NULL,
   categoria VARCHAR(255) NULL,
   subcategoria VARCHAR(255) NULL,
@@ -208,8 +202,7 @@ CREATE TABLE metabase_changes (
   data_carga DATETIME NOT NULL,
   PRIMARY KEY (chamado),
   INDEX idx_changes_status (status_chamado),
-  INDEX idx_changes_data_id (data_id),
-  INDEX idx_changes_faixa_upd (faixa_sem_atualizacao)
+  INDEX idx_changes_data_id (data_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE metabase_problems (
@@ -229,11 +222,8 @@ CREATE TABLE metabase_problems (
   limite_solucao DATETIME NULL,
   mttr_minutos DECIMAL(12,2) NULL,
   aging_minutos DECIMAL(12,2) NULL,
-  
-  /* Colunas de Atualização */
   dias_sem_atualizacao INT NULL,
   faixa_sem_atualizacao VARCHAR(50) NULL,
-
   servico_completo VARCHAR(255) NULL,
   categoria VARCHAR(255) NULL,
   subcategoria VARCHAR(255) NULL,
@@ -254,8 +244,7 @@ CREATE TABLE metabase_problems (
   data_carga DATETIME NOT NULL,
   PRIMARY KEY (chamado),
   INDEX idx_problems_status (status_chamado),
-  INDEX idx_problems_data_id (data_id),
-  INDEX idx_problems_faixa_upd (faixa_sem_atualizacao)
+  INDEX idx_problems_data_id (data_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE VIEW v_tickets_abertos AS

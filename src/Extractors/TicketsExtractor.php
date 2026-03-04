@@ -38,7 +38,6 @@ final class TicketsExtractor {
         t.date_mod AS data_ultima_atualizacao,
         DATE(t.date) AS data_id,
         
-        /* Cálculo de dias sem atualização */
         TIMESTAMPDIFF(DAY, t.date_mod, UTC_TIMESTAMP()) AS dias_sem_atualizacao,
 
         CASE t.status
@@ -54,6 +53,8 @@ final class TicketsExtractor {
         CAST(t.priority AS CHAR) AS prioridade,
         CAST(t.urgency AS CHAR) AS urgencia,
         CAST(t.impact AS CHAR) AS impacto,
+        
+        rt.name AS canal,
 
         CASE
           WHEN t.time_to_own IS NULL THEN 'SEM SLA'
@@ -167,6 +168,7 @@ final class TicketsExtractor {
       LEFT JOIN glpi_entities e ON e.id = t.entities_id
       LEFT JOIN glpi_locations l ON l.id = t.locations_id
       LEFT JOIN glpi_users u_req ON u_req.id = t.users_id_recipient
+      LEFT JOIN glpi_requesttypes rt ON rt.id = t.requesttypes_id
 
       LEFT JOIN (
         SELECT tickets_id, MIN(groups_id) AS groups_id

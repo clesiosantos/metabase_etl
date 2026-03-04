@@ -7,7 +7,7 @@ final class TicketsLoader {
       INSERT INTO metabase_tickets (
         chamado, titulo_chamado, tipo_chamado,
         data_criacao, data_solucao, data_fechamento, data_ultima_atualizacao, data_id,
-        status_chamado, prioridade, urgencia, impacto,
+        status_chamado, prioridade, urgencia, impacto, canal,
         status_sla, tto_status, ttr_status, tto_em_risco, ttr_em_risco,
         limite_solucao, limite_atendimento,
         sla_risco, sla_atendimento_ok, sla_solucao_ok,
@@ -24,7 +24,7 @@ final class TicketsLoader {
       ) VALUES (
         :chamado, :titulo_chamado, :tipo_chamado,
         :data_criacao, :data_solucao, :data_fechamento, :data_ultima_atualizacao, :data_id,
-        :status_chamado, :prioridade, :urgencia, :impacto,
+        :status_chamado, :prioridade, :urgencia, :impacto, :canal,
         :status_sla, :tto_status, :ttr_status, :tto_em_risco, :ttr_em_risco,
         :limite_solucao, :limite_atendimento,
         :sla_risco, :sla_atendimento_ok, :sla_solucao_ok,
@@ -51,6 +51,7 @@ final class TicketsLoader {
         prioridade=VALUES(prioridade),
         urgencia=VALUES(urgencia),
         impacto=VALUES(impacto),
+        canal=VALUES(canal),
         status_sla=VALUES(status_sla),
         tto_status=VALUES(tto_status),
         ttr_status=VALUES(ttr_status),
