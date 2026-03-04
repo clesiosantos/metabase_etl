@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 final class TicketsExtractor {
   public static function fetchChangedIds(PDO $src, string $lastUtc, string $fullStartUtc): array {
     $sql = "
@@ -35,6 +37,9 @@ final class TicketsExtractor {
         t.closedate AS data_fechamento,
         t.date_mod AS data_ultima_atualizacao,
         DATE(t.date) AS data_id,
+        
+        /* Cálculo de dias sem atualização */
+        TIMESTAMPDIFF(DAY, t.date_mod, UTC_TIMESTAMP()) AS dias_sem_atualizacao,
 
         CASE t.status
           WHEN 1 THEN 'Novo'
@@ -50,7 +55,6 @@ final class TicketsExtractor {
         CAST(t.urgency AS CHAR) AS urgencia,
         CAST(t.impact AS CHAR) AS impacto,
 
-        -- SLA Atendimento (TTO)
         CASE
           WHEN t.time_to_own IS NULL THEN 'SEM SLA'
           WHEN t.takeintoaccountdate IS NULL AND UTC_TIMESTAMP() > t.time_to_own THEN 'FORA DO PRAZO'
@@ -64,7 +68,6 @@ final class TicketsExtractor {
           ELSE 0
         END AS tto_em_risco,
 
-        -- SLA Resolução (TTR)
         CASE
           WHEN t.time_to_resolve IS NULL THEN 'SEM SLA'
           WHEN t.solvedate IS NULL AND UTC_TIMESTAMP() > t.time_to_resolve THEN 'FORA DO PRAZO'
@@ -78,7 +81,6 @@ final class TicketsExtractor {
           ELSE 0
         END AS ttr_em_risco,
 
-        -- Mantido para compatibilidade
         CASE
           WHEN t.time_to_resolve IS NULL AND t.time_to_own IS NULL THEN 'SEM SLA'
           WHEN t.status <> 6 AND t.time_to_resolve IS NOT NULL AND UTC_TIMESTAMP() > t.time_to_resolve THEN 'SLA FORA DO PRAZO'
@@ -153,7 +155,6 @@ final class TicketsExtractor {
 
         0 AS incidente_recorrente,
 
-        /* Tags agregadas (string) */
         tagg.tags AS tags,
 
         t.users_id_recipient,

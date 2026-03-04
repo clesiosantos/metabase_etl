@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 final class TicketsLoader {
   public static function upsertStatement(PDO $dst): PDOStatement {
     $sql = "
@@ -11,6 +13,7 @@ final class TicketsLoader {
         sla_risco, sla_atendimento_ok, sla_solucao_ok,
         tma_minutos, mttr_minutos, aging_minutos,
         tempo_primeiro_atendimento_minutos, tempo_espera_minutos,
+        dias_sem_atualizacao, faixa_sem_atualizacao,
         servico_completo, categoria, subcategoria, servico,
         grupo_solucionador, grupo_solucionador_nome, id_grupo_solucionador,
         tipo_contrato, grupo_solucao, tipo_atividade,
@@ -27,6 +30,7 @@ final class TicketsLoader {
         :sla_risco, :sla_atendimento_ok, :sla_solucao_ok,
         :tma_minutos, :mttr_minutos, :aging_minutos,
         :tempo_primeiro_atendimento_minutos, :tempo_espera_minutos,
+        :dias_sem_atualizacao, :faixa_sem_atualizacao,
         :servico_completo, :categoria, :subcategoria, :servico,
         :grupo_solucionador, :grupo_solucionador_nome, :id_grupo_solucionador,
         :tipo_contrato, :grupo_solucao, :tipo_atividade,
@@ -62,6 +66,8 @@ final class TicketsLoader {
         aging_minutos=VALUES(aging_minutos),
         tempo_primeiro_atendimento_minutos=VALUES(tempo_primeiro_atendimento_minutos),
         tempo_espera_minutos=VALUES(tempo_espera_minutos),
+        dias_sem_atualizacao=VALUES(dias_sem_atualizacao),
+        faixa_sem_atualizacao=VALUES(faixa_sem_atualizacao),
         servico_completo=VALUES(servico_completo),
         categoria=VALUES(categoria),
         subcategoria=VALUES(subcategoria),
