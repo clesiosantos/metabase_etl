@@ -32,7 +32,6 @@ final class ChangesJob {
       $validation = self::validate($dst);
       EtlRun::finishSuccess($dst, $runId, $validation, 'OK');
 
-      // Persistir checkpoint como UTC
       Checkpoint::set($dst, $entity, gmdate('Y-m-d H:i:s'));
 
     } catch (Throwable $e) {
@@ -80,6 +79,10 @@ final class ChangesJob {
       ':subcategoria' => $row['subcategoria'] ?? null,
       ':servico' => $row['servico'] ?? null,
 
+      ':tipo_solucao' => $row['tipo_solucao'] ?? null,
+      ':disciplina_solucao' => $row['disciplina_solucao'] ?? null,
+      ':modelo_solucao' => $row['modelo_solucao'] ?? null,
+
       ':grupo_solucionador' => $row['grupo_solucionador'] ?? null,
       ':grupo_solucionador_nome' => $row['grupo_solucionador_nome'] ?? null,
       ':id_grupo_solucionador' => $row['id_grupo_solucionador'] ?? null,
@@ -110,7 +113,6 @@ final class ChangesJob {
       'ttr_status_distribution' => [],
     ];
 
-    // data_id é DATE: checar somente NULL (não comparar com '')
     $st = $dst->query("
       SELECT
         COUNT(*) AS total,
@@ -122,7 +124,6 @@ final class ChangesJob {
     $nulls = (int)($r['nulls'] ?? 0);
     $out['null_rates']['data_id'] = $total > 0 ? round(100 * $nulls / $total, 2) : null;
 
-    // entidade_cliente é texto: pode validar '' sem erro
     $st = $dst->query("
       SELECT
         COUNT(*) AS total,
@@ -134,7 +135,6 @@ final class ChangesJob {
     $nulls = (int)($r['nulls'] ?? 0);
     $out['null_rates']['entidade_cliente'] = $total > 0 ? round(100 * $nulls / $total, 2) : null;
 
-    // Distribuição de SLA
     $st = $dst->query("
       SELECT ttr_status, COUNT(*) AS qtd
       FROM metabase_changes

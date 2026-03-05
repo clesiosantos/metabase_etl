@@ -1,7 +1,7 @@
 <?php
 /**
  * Data: 26/02/2026
- * Versão: 1.0.1
+ * Versão: 1.0.2
  * Autor: 3P Systems — www.3psystems.com.br
  */
 
@@ -21,7 +21,10 @@ final class Validator {
         SUM(CASE WHEN id_grupo_solucionador IS NOT NULL THEN 1 ELSE 0 END) AS gid_ok,
         SUM(CASE WHEN tipo_contrato IS NOT NULL AND tipo_contrato <> '' THEN 1 ELSE 0 END) AS tipo_contrato_ok,
         SUM(CASE WHEN grupo_solucao IS NOT NULL AND grupo_solucao <> '' THEN 1 ELSE 0 END) AS grupo_solucao_ok,
-        SUM(CASE WHEN tipo_atividade IS NOT NULL AND tipo_atividade <> '' THEN 1 ELSE 0 END) AS tipo_atividade_ok
+        SUM(CASE WHEN tipo_atividade IS NOT NULL AND tipo_atividade <> '' THEN 1 ELSE 0 END) AS tipo_atividade_ok,
+        SUM(CASE WHEN tipo_solucao IS NOT NULL AND tipo_solucao <> '' THEN 1 ELSE 0 END) AS sol_ok,
+        SUM(CASE WHEN disciplina_solucao IS NOT NULL AND disciplina_solucao <> '' THEN 1 ELSE 0 END) AS disc_ok,
+        SUM(CASE WHEN modelo_solucao IS NOT NULL AND modelo_solucao <> '' THEN 1 ELSE 0 END) AS mod_ok
       FROM metabase_tickets
     ";
     $out['filled'] = $dst->query($sqlFilled)->fetch();

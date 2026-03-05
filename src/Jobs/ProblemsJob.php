@@ -79,6 +79,10 @@ final class ProblemsJob {
       ':subcategoria' => $row['subcategoria'] ?? null,
       ':servico' => $row['servico'] ?? null,
 
+      ':tipo_solucao' => $row['tipo_solucao'] ?? null,
+      ':disciplina_solucao' => $row['disciplina_solucao'] ?? null,
+      ':modelo_solucao' => $row['modelo_solucao'] ?? null,
+
       ':grupo_solucionador' => $row['grupo_solucionador'] ?? null,
       ':grupo_solucionador_nome' => $row['grupo_solucionador_nome'] ?? null,
       ':id_grupo_solucionador' => $row['id_grupo_solucionador'] ?? null,
@@ -109,7 +113,6 @@ final class ProblemsJob {
       'ttr_status_distribution' => [],
     ];
 
-    // data_id é DATE: checar somente NULL
     $st = $dst->query("
       SELECT
         COUNT(*) AS total,

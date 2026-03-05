@@ -80,6 +80,8 @@ final class ProblemsExtractor {
         SUBSTRING_INDEX(ic.completename, ' > ', -1) AS servico,
         
         styp.name AS tipo_solucao,
+        CASE WHEN styp.name LIKE '%::%' THEN SUBSTRING_INDEX(styp.name, '::', 1) ELSE NULL END AS disciplina_solucao,
+        CASE WHEN styp.name LIKE '%::%' THEN SUBSTRING_INDEX(styp.name, '::', -1) ELSE styp.name END AS modelo_solucao,
 
         NULL AS grupo_solucionador,
         NULL AS grupo_solucionador_nome,
