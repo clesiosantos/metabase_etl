@@ -4,10 +4,11 @@
 
 -- 1. Total de Chamado Fechado
 SELECT
-  COUNT(*) AS total_fechados
-FROM metabase_tickets
-WHERE status_chamado = 'Fechado'
-  AND servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+  COUNT(t.chamado) AS total_fechados
+FROM metabase_tickets t
+JOIN dim_calendario c ON c.data = t.data_id
+WHERE t.status_chamado = 'Fechado'
+  AND t.servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
 [[AND {{cliente}}]]
 [[AND {{torre}}]]
 [[AND {{tecnico}}]]
@@ -21,12 +22,13 @@ WHERE status_chamado = 'Fechado'
 [[AND {{periodo_abertura}}]]
 [[AND {{periodo_fechamento}}]];
 
--- 2. Total de Chamados Aberto (Backlog Atual)
+-- 2. Total de Chamados Aberto
 SELECT
-  COUNT(*) AS total_abertos
-FROM metabase_tickets
-WHERE status_chamado NOT IN ('Solucionado', 'Fechado')
-  AND servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+  COUNT(t.chamado) AS total_abertos
+FROM metabase_tickets t
+JOIN dim_calendario c ON c.data = t.data_id
+WHERE t.status_chamado NOT IN ('Solucionado', 'Fechado')
+  AND t.servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
 [[AND {{cliente}}]]
 [[AND {{torre}}]]
 [[AND {{tecnico}}]]
@@ -40,17 +42,18 @@ WHERE status_chamado NOT IN ('Solucionado', 'Fechado')
 [[AND {{periodo_abertura}}]]
 [[AND {{periodo_fechamento}}]];
 
--- 3. Chamados Aberto X Fechado - Visão Diária (Últimos 30 dias)
--- Esta consulta compara quantos chamados foram CRIADOS vs quantos foram FECHADOS por dia.
+-- 3. Chamados Aberto X Fechado - Visão Diária (30 dias)
+-- Usa a dim_calendario como base para garantir que dias sem movimento apareçam no gráfico.
 SELECT
   cal.data AS dia,
   COALESCE(criados.qtd, 0) AS chamados_criados,
   COALESCE(fechados.qtd, 0) AS chamados_fechados
 FROM dim_calendario cal
 LEFT JOIN (
-  SELECT data_id, COUNT(*) AS qtd
-  FROM metabase_tickets
-  WHERE servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+  SELECT t.data_id, COUNT(*) AS qtd
+  FROM metabase_tickets t
+  JOIN dim_calendario c ON c.data = t.data_id
+  WHERE t.servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
   [[AND {{cliente}}]]
   [[AND {{torre}}]]
   [[AND {{tecnico}}]]
@@ -61,13 +64,14 @@ LEFT JOIN (
   [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
   [[AND {{etiqueta}}]]
-  GROUP BY data_id
+  GROUP BY t.data_id
 ) criados ON criados.data_id = cal.data
 LEFT JOIN (
-  SELECT DATE(data_fechamento) AS data_f, COUNT(*) AS qtd
-  FROM metabase_tickets
-  WHERE status_chamado = 'Fechado'
-    AND servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+  SELECT DATE(t.data_fechamento) AS data_f, COUNT(*) AS qtd
+  FROM metabase_tickets t
+  JOIN dim_calendario c ON c.data = t.data_id
+  WHERE t.status_chamado = 'Fechado'
+    AND t.servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
     [[AND {{cliente}}]]
     [[AND {{torre}}]]
     [[AND {{tecnico}}]]

@@ -2,19 +2,18 @@
    RELATÓRIO GESTÃO A VISTA - ABA SLA
    ============================================================ */
 
--- 1. % de SLA de Resposta (TTO) - Últimos 6 meses (Mensal)
+-- 1. % de SLA de Resposta (TTO) - Últimos 6 meses
 SELECT
-  DATE_FORMAT(data_criacao, '%Y-%m') AS mes,
+  c.ano_mes AS mes,
   ROUND(
-    SUM(CASE WHEN tto_status IN ('NO PRAZO', 'EM RISCO') THEN 1 ELSE 0 END) / 
-    NULLIF(SUM(CASE WHEN tto_status <> 'SEM SLA' THEN 1 ELSE 0 END), 0) * 100, 
+    SUM(CASE WHEN t.tto_status IN ('NO PRAZO', 'EM RISCO') THEN 1 ELSE 0 END) / 
+    NULLIF(SUM(CASE WHEN t.tto_status <> 'SEM SLA' THEN 1 ELSE 0 END), 0) * 100, 
     2
   ) AS percentual_sla_resposta
-FROM metabase_tickets
-WHERE 1=1
-  -- Filtro padrão de exclusão solicitado
-  AND servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
-  AND data_criacao >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
+FROM metabase_tickets t
+JOIN dim_calendario c ON c.data = t.data_id
+WHERE t.servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+  AND t.data_criacao >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
 [[AND {{cliente}}]]
 [[AND {{torre}}]]
 [[AND {{tecnico}}]]
@@ -27,21 +26,21 @@ WHERE 1=1
 [[AND {{etiqueta}}]]
 [[AND {{periodo_abertura}}]]
 [[AND {{periodo_fechamento}}]]
-GROUP BY mes
-ORDER BY mes ASC;
+GROUP BY c.ano_mes
+ORDER BY c.ano_mes ASC;
 
--- 2. % de SLA de Solução (TTR) - Últimos 6 meses (Mensal)
+-- 2. % de SLA de Solução (TTR) - Últimos 6 meses
 SELECT
-  DATE_FORMAT(data_criacao, '%Y-%m') AS mes,
+  c.ano_mes AS mes,
   ROUND(
-    SUM(CASE WHEN ttr_status IN ('NO PRAZO', 'EM RISCO') THEN 1 ELSE 0 END) / 
-    NULLIF(SUM(CASE WHEN ttr_status <> 'SEM SLA' THEN 1 ELSE 0 END), 0) * 100, 
+    SUM(CASE WHEN t.ttr_status IN ('NO PRAZO', 'EM RISCO') THEN 1 ELSE 0 END) / 
+    NULLIF(SUM(CASE WHEN t.ttr_status <> 'SEM SLA' THEN 1 ELSE 0 END), 0) * 100, 
     2
   ) AS percentual_sla_solucao
-FROM metabase_tickets
-WHERE 1=1
-  AND servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
-  AND data_criacao >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
+FROM metabase_tickets t
+JOIN dim_calendario c ON c.data = t.data_id
+WHERE t.servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+  AND t.data_criacao >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
 [[AND {{cliente}}]]
 [[AND {{torre}}]]
 [[AND {{tecnico}}]]
@@ -54,20 +53,20 @@ WHERE 1=1
 [[AND {{etiqueta}}]]
 [[AND {{periodo_abertura}}]]
 [[AND {{periodo_fechamento}}]]
-GROUP BY mes
-ORDER BY mes ASC;
+GROUP BY c.ano_mes
+ORDER BY c.ano_mes ASC;
 
 -- 3. % SLA Resposta Diário (TTO)
 SELECT
-  data_id AS dia,
+  c.data AS dia,
   ROUND(
-    SUM(CASE WHEN tto_status IN ('NO PRAZO', 'EM RISCO') THEN 1 ELSE 0 END) / 
-    NULLIF(SUM(CASE WHEN tto_status <> 'SEM SLA' THEN 1 ELSE 0 END), 0) * 100, 
+    SUM(CASE WHEN t.tto_status IN ('NO PRAZO', 'EM RISCO') THEN 1 ELSE 0 END) / 
+    NULLIF(SUM(CASE WHEN t.tto_status <> 'SEM SLA' THEN 1 ELSE 0 END), 0) * 100, 
     2
   ) AS percentual_sla_resposta_diario
-FROM metabase_tickets
-WHERE 1=1
-  AND servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+FROM metabase_tickets t
+JOIN dim_calendario c ON c.data = t.data_id
+WHERE t.servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
 [[AND {{cliente}}]]
 [[AND {{torre}}]]
 [[AND {{tecnico}}]]
@@ -80,20 +79,20 @@ WHERE 1=1
 [[AND {{etiqueta}}]]
 [[AND {{periodo_abertura}}]]
 [[AND {{periodo_fechamento}}]]
-GROUP BY dia
-ORDER BY dia ASC;
+GROUP BY c.data
+ORDER BY c.data ASC;
 
 -- 4. % SLA de Solução Diário (TTR)
 SELECT
-  data_id AS dia,
+  c.data AS dia,
   ROUND(
-    SUM(CASE WHEN ttr_status IN ('NO PRAZO', 'EM RISCO') THEN 1 ELSE 0 END) / 
-    NULLIF(SUM(CASE WHEN ttr_status <> 'SEM SLA' THEN 1 ELSE 0 END), 0) * 100, 
+    SUM(CASE WHEN t.ttr_status IN ('NO PRAZO', 'EM RISCO') THEN 1 ELSE 0 END) / 
+    NULLIF(SUM(CASE WHEN t.ttr_status <> 'SEM SLA' THEN 1 ELSE 0 END), 0) * 100, 
     2
   ) AS percentual_sla_solucao_diario
-FROM metabase_tickets
-WHERE 1=1
-  AND servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+FROM metabase_tickets t
+JOIN dim_calendario c ON c.data = t.data_id
+WHERE t.servico NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
 [[AND {{cliente}}]]
 [[AND {{torre}}]]
 [[AND {{tecnico}}]]
@@ -106,5 +105,5 @@ WHERE 1=1
 [[AND {{etiqueta}}]]
 [[AND {{periodo_abertura}}]]
 [[AND {{periodo_fechamento}}]]
-GROUP BY dia
-ORDER BY dia ASC;
+GROUP BY c.data
+ORDER BY c.data ASC;
