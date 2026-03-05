@@ -78,6 +78,8 @@ final class ProblemsExtractor {
         SUBSTRING_INDEX(ic.completename, ' > ', 1) AS categoria,
         SUBSTRING_INDEX(SUBSTRING_INDEX(ic.completename, ' > ', 2), ' > ', -1) AS subcategoria,
         SUBSTRING_INDEX(ic.completename, ' > ', -1) AS servico,
+        
+        styp.name AS tipo_solucao,
 
         NULL AS grupo_solucionador,
         NULL AS grupo_solucionador_nome,
@@ -105,6 +107,10 @@ final class ProblemsExtractor {
       LEFT JOIN glpi_entities e ON e.id = p.entities_id
       LEFT JOIN glpi_locations l ON l.id = p.locations_id
       LEFT JOIN glpi_users u_req ON u_req.id = p.users_id_recipient
+      
+      -- Join para Modelo de Solução
+      LEFT JOIN glpi_itilsolutions isol ON (isol.items_id = p.id AND isol.itemtype = 'Problem')
+      LEFT JOIN glpi_solutiontypes styp ON styp.id = isol.solutiontypes_id
 
       LEFT JOIN (
         SELECT problems_id, MIN(users_id) AS users_id

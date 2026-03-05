@@ -89,6 +89,8 @@ final class ChangesExtractor {
         SUBSTRING_INDEX(ic.completename, ' > ', 1) AS categoria,
         SUBSTRING_INDEX(SUBSTRING_INDEX(ic.completename, ' > ', 2), ' > ', -1) AS subcategoria,
         SUBSTRING_INDEX(ic.completename, ' > ', -1) AS servico,
+        
+        styp.name AS tipo_solucao,
 
         gsol.completename AS grupo_solucionador,
         gsol.name AS grupo_solucionador_nome,
@@ -116,6 +118,10 @@ final class ChangesExtractor {
       LEFT JOIN glpi_entities e ON e.id = c.entities_id
       LEFT JOIN glpi_locations l ON l.id = c.locations_id
       LEFT JOIN glpi_users u_req ON u_req.id = c.users_id_recipient
+      
+      -- Join para Modelo de Solução
+      LEFT JOIN glpi_itilsolutions isol ON (isol.items_id = c.id AND isol.itemtype = 'Change')
+      LEFT JOIN glpi_solutiontypes styp ON styp.id = isol.solutiontypes_id
 
       LEFT JOIN (
         SELECT changes_id, MIN(groups_id) AS groups_id

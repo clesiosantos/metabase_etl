@@ -132,6 +132,8 @@ final class TicketsExtractor {
         SUBSTRING_INDEX(ic.completename, ' > ', 1) AS categoria,
         SUBSTRING_INDEX(SUBSTRING_INDEX(ic.completename, ' > ', 2), ' > ', -1) AS subcategoria,
         SUBSTRING_INDEX(ic.completename, ' > ', -1) AS servico,
+        
+        styp.name AS tipo_solucao,
 
         gsol.completename AS grupo_solucionador,
         gsol.name AS grupo_solucionador_nome,
@@ -169,6 +171,10 @@ final class TicketsExtractor {
       LEFT JOIN glpi_locations l ON l.id = t.locations_id
       LEFT JOIN glpi_users u_req ON u_req.id = t.users_id_recipient
       LEFT JOIN glpi_requesttypes rt ON rt.id = t.requesttypes_id
+      
+      -- Join para Modelo de Solução (GLPI 10)
+      LEFT JOIN glpi_itilsolutions isol ON (isol.items_id = t.id AND isol.itemtype = 'Ticket')
+      LEFT JOIN glpi_solutiontypes styp ON styp.id = isol.solutiontypes_id
 
       LEFT JOIN (
         SELECT tickets_id, MIN(groups_id) AS groups_id
