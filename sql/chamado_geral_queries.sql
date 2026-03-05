@@ -1,56 +1,56 @@
 -- 1. Distribuição por Disciplina de Solução
 SELECT 
-    COALESCE(t.disciplina_solucao, 'Não Informado') AS disciplina,
+    COALESCE(metabase_tickets.disciplina_solucao, 'Não Informado') AS disciplina,
     COUNT(*) AS qtd
-FROM metabase_tickets t
-JOIN dim_calendario c ON c.data = t.data_id
-WHERE t.status_chamado IN ('Solucionado', 'Fechado')
-  [[AND {{periodo}}]] -- Mapear para c.data no Metabase
+FROM metabase_tickets
+JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
+WHERE metabase_tickets.status_chamado IN ('Solucionado', 'Fechado')
+  [[AND {{periodo}}]]
   [[AND {{cliente}}]]
-GROUP BY t.disciplina_solucao
+GROUP BY metabase_tickets.disciplina_solucao
 ORDER BY qtd DESC;
 
 -- 2. Ranking de Modelos de Solução (Top 10)
 SELECT 
-    COALESCE(t.modelo_solucao, 'Não Informado') AS modelo,
+    COALESCE(metabase_tickets.modelo_solucao, 'Não Informado') AS modelo,
     COUNT(*) AS qtd
-FROM metabase_tickets t
-JOIN dim_calendario c ON c.data = t.data_id
-WHERE t.status_chamado IN ('Solucionado', 'Fechado')
+FROM metabase_tickets
+JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
+WHERE metabase_tickets.status_chamado IN ('Solucionado', 'Fechado')
   [[AND {{periodo}}]]
-GROUP BY t.modelo_solucao
+GROUP BY metabase_tickets.modelo_solucao
 ORDER BY qtd DESC
 LIMIT 10;
 
--- 3. Volume por Etiquetas (Tags) - Usando a Ponte e Calendário
+-- 3. Volume por Etiquetas (Tags) - Usando a Ponte e Calendário sem aliases
 SELECT
-    dt.name AS tag,
-    COUNT(DISTINCT t.chamado) AS qtd
-FROM metabase_tickets t
-JOIN dim_calendario c ON c.data = t.data_id
-JOIN bridge_ticket_tags btt ON btt.ticket_id = t.chamado
-JOIN dim_tags dt ON dt.tag_id = btt.tag_id
+    dim_tags.name AS tag,
+    COUNT(DISTINCT metabase_tickets.chamado) AS qtd
+FROM metabase_tickets
+JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
+JOIN bridge_ticket_tags ON bridge_ticket_tags.ticket_id = metabase_tickets.chamado
+JOIN dim_tags ON dim_tags.tag_id = bridge_ticket_tags.tag_id
 WHERE 1=1
   [[AND {{periodo}}]]
   [[AND {{cliente}}]]
-GROUP BY dt.name
+GROUP BY dim_tags.name
 ORDER BY qtd DESC;
 
 -- 4. Listagem Geral com Detalhes de Solução
 SELECT 
-    t.chamado,
-    t.titulo_chamado,
-    t.status_chamado,
-    t.data_criacao,
-    t.data_solucao,
-    t.disciplina_solucao,
-    t.modelo_solucao,
-    t.agente_solucionador,
-    t.entidade_cliente
-FROM metabase_tickets t
-JOIN dim_calendario c ON c.data = t.data_id
+    metabase_tickets.chamado,
+    metabase_tickets.titulo_chamado,
+    metabase_tickets.status_chamado,
+    metabase_tickets.data_criacao,
+    metabase_tickets.data_solucao,
+    metabase_tickets.disciplina_solucao,
+    metabase_tickets.modelo_solucao,
+    metabase_tickets.agente_solucionador,
+    metabase_tickets.entidade_cliente
+FROM metabase_tickets
+JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
 WHERE 1=1
   [[AND {{periodo}}]]
   [[AND {{status}}]]
   [[AND {{cliente}}]]
-ORDER BY t.data_criacao DESC;
+ORDER BY metabase_tickets.data_criacao DESC;
