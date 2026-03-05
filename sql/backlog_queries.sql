@@ -43,9 +43,9 @@ WHERE metabase_tickets.status_chamado NOT IN ('Solucionado', 'Fechado')
 GROUP BY metabase_tickets.entidade_cliente
 ORDER BY qtd DESC;
 
--- 3. Volume por Torre (Gráfico de Barras)
+-- 3. Volume por Torre (Gráfico de Barras) - AJUSTADO PARA TIPO_ATIVIDADE
 SELECT 
-    metabase_tickets.grupo_solucao, 
+    metabase_tickets.tipo_atividade, 
     COUNT(*) AS qtd
 FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
@@ -59,7 +59,7 @@ WHERE metabase_tickets.status_chamado NOT IN ('Solucionado', 'Fechado')
   [[AND {{tipo_solucao}}]]
   [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
-GROUP BY metabase_tickets.grupo_solucao
+GROUP BY metabase_tickets.tipo_atividade
 ORDER BY qtd DESC;
 
 -- 4. Volume por Aging (Gráfico de Barras)
