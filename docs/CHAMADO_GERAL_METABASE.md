@@ -3,40 +3,25 @@
 Este documento descreve a configuração das perguntas (cards) no Metabase para a aba de **Chamado Geral**.
 
 ## 1. Regras de Negócio
-- **Filtro de Exclusão:** Por padrão, todos os indicadores ignoram chamados com tipo de solução `Ticket::Duplicado` e `Ticket::Cancelado`.
-- **Chamados Abertos:** Considera qualquer chamado que **NÃO** esteja nos status 'Solucionado' ou 'Fechado'.
-- **Chamados Fechados:** Considera apenas chamados com status 'Fechado'.
+- **Disponibilidade de Dados:** Todas as tags (incluindo `Ticket::Cancelado` e `Ticket::Duplicado`) estão disponíveis no DW.
+- **Filtro Padrão:** Recomenda-se configurar o filtro `{{tipo_solucao}}` no Metabase com o valor padrão "Selecionar todos exceto: Ticket::Duplicado, Ticket::Cancelado" para manter a visão limpa, permitindo que o usuário altere se necessário.
 
-## 2. Filtros Globais (Variáveis)
-Configure as variáveis no Metabase como **Filtro de Campo (Field Filter)**:
+## 2. Relacionamento com Etiquetas (Tags)
+O DW utiliza uma estrutura de ponte para permitir que um chamado tenha múltiplas etiquetas sem duplicar linhas na tabela fato.
 
-| Variável | Coluna de Mapeamento | Tipo de Filtro |
-| :--- | :--- | :--- |
-| `{{periodo_abertura}}` | `data_id` | Data |
-| `{{periodo_fechamento}}` | `data_fechamento` | Data |
-| `{{cliente}}` | `entidade_cliente` | Categoria |
-| `{{torre}}` | `grupo_solucao` | Categoria |
-| `{{tecnico}}` | `nome_tecnico_responsavel` | Categoria |
-| `{{agente_abertura}}` | `nome_solicitante` | Categoria |
-| `{{agente_solucao}}` | `agente_solucionador` | Categoria |
-| `{{status}}` | `status_chamado` | Categoria |
-| `{{tipo_solucao}}` | `servico` | Categoria |
-| `{{tipo_chamado}}` | `tipo_chamado` | Categoria |
-| `{{prioridade}}` | `prioridade` | Categoria |
-| `{{etiqueta}}` | `tags` | Categoria |
+**Exemplo de Join para Relatórios de Tags:**
+```sql
+SELECT
+  dt.name AS tag,
+  COUNT(DISTINCT t.chamado) AS qtd
+FROM metabase_tickets t
+JOIN bridge_ticket_tags btt ON btt.ticket_id = t.chamado
+JOIN dim_tags dt ON dt.tag_id = btt.tag_id
+GROUP BY dt.name
+```
 
-## 3. Descrição dos Gráficos
+## 3. Filtros Globais (Variáveis)
+... (mantém os filtros anteriores) ...
 
-### 1. Total de Chamado Fechado (Número)
-Exibe o volume acumulado de entregas (fechamentos) conforme os filtros aplicados.
-
-### 2. Total de Chamados Aberto (Número)
-Exibe o estoque atual de trabalho (backlog).
-
-### 3. Chamados Aberto X Fechado - Visão Diária (Gráfico de Linhas)
-**Análise de Fluxo:** Compara a quantidade de chamados que entraram (Criados) vs a quantidade que saiu (Fechados) nos últimos 30 dias.
-- Se a linha de **Criados** estiver consistentemente acima da de **Fechados**, o backlog está aumentando.
-- Se a linha de **Fechados** estiver acima, a equipe está reduzindo o backlog.
-
----
-**Nota:** O gráfico diário utiliza a `dim_calendario` para garantir que dias sem movimento (ex: finais de semana) apareçam com valor zero em vez de sumirem do eixo X.
+## 4. Gráficos Adicionais Sugeridos
+- **Ranking de Etiquetas:** Gráfico de barras mostrando quais tags são mais frequentes (ex: identificar volume de cancelados via tag).
