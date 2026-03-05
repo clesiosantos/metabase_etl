@@ -6,7 +6,7 @@ Este documento descreve a configuração das perguntas (cards) no Metabase para 
 Todas as consultas utilizam a tabela `dw_glpi.metabase_tickets` com `JOIN` na `dw_glpi.dim_calendario`.
 
 ## 2. Filtros Globais (Variáveis)
-Configure as variáveis no Metabase como **Filtro de Campo (Field Filter)**:
+Para que o dashboard funcione corretamente, **todos os cards** devem conter as seguintes variáveis configuradas como **Filtro de Campo (Field Filter)**:
 
 | Variável | Coluna de Mapeamento | Tipo de Filtro |
 | :--- | :--- | :--- |
@@ -21,4 +21,9 @@ Configure as variáveis no Metabase como **Filtro de Campo (Field Filter)**:
 | `{{prioridade}}` | `metabase_tickets.prioridade` | Categoria |
 
 ## 3. Descrição dos Gráficos
-... (mantém as descrições anteriores) ...
+1. **Volume Total:** Card numérico com o total de chamados abertos.
+2. **Volume por Cliente:** Ranking dos clientes com maior backlog.
+3. **Volume por Torre:** Distribuição do backlog por grupo solucionador.
+4. **Volume por Aging:** Tempo de vida dos chamados abertos.
+5. **Volume Dias Sem Atualizar:** Identificação de chamados "parados".
+6. **Volume por Status:** Detalhamento dos status do backlog (ex: Novo, Pendente, Atribuído).
