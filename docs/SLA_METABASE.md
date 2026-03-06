@@ -22,7 +22,9 @@ Configure as variáveis no Metabase como **Filtro de Campo (Field Filter)**:
 | `{{tipo_solucao}}` | `metabase_tickets.tipo_solucao` | Categoria |
 | `{{tipo_chamado}}` | `metabase_tickets.tipo_chamado` | Categoria |
 | `{{prioridade}}` | `metabase_tickets.prioridade` | Categoria |
-| `{{etiqueta}}` | `metabase_tickets.tags` | Categoria |
+| `{{etiqueta}}` | `dim_tags.name` | Categoria |
+
+> **Nota sobre Etiquetas:** O filtro `{{etiqueta}}` deve ser mapeado obrigatoriamente para a coluna `name` da tabela `dim_tags`. A consulta utiliza uma subquery na tabela de ponte `bridge_ticket_tags` para garantir que o filtro funcione sem duplicar os registros de chamados.
 
 ## 3. Descrição dos Gráficos
 ... (mantém as descrições anteriores) ...

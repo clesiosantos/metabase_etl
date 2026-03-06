@@ -10,7 +10,7 @@
 -- [[AND {{tipo_solucao}}]]       -- Mapear para metabase_tickets.tipo_solucao
 -- [[AND {{tipo_chamado}}]]       -- Mapear para metabase_tickets.tipo_chamado
 -- [[AND {{prioridade}}]]         -- Mapear para metabase_tickets.prioridade
--- [[AND {{etiqueta}}]]           -- Mapear para metabase_tickets.tags
+-- [[AND {{etiqueta}}]]           -- Mapear para dim_tags.name (via subquery abaixo)
 
 -- 1. % de SLA de Resposta (TTO) - Evolução Mensal
 SELECT
@@ -30,7 +30,13 @@ WHERE tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
   [[AND {{tipo_solucao}}]]
   [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
-  [[AND {{etiqueta}}]]
+  -- Filtro de Etiqueta via Tabela de Ponte
+  [[AND metabase_tickets.chamado IN (
+      SELECT btt.ticket_id 
+      FROM bridge_ticket_tags btt 
+      JOIN dim_tags dt ON dt.tag_id = btt.tag_id 
+      WHERE {{etiqueta}}
+  )]]
 GROUP BY dim_calendario.ano_mes
 ORDER BY dim_calendario.ano_mes;
 
@@ -52,7 +58,13 @@ WHERE tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
   [[AND {{tipo_solucao}}]]
   [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
-  [[AND {{etiqueta}}]]
+  -- Filtro de Etiqueta via Tabela de Ponte
+  [[AND metabase_tickets.chamado IN (
+      SELECT btt.ticket_id 
+      FROM bridge_ticket_tags btt 
+      JOIN dim_tags dt ON dt.tag_id = btt.tag_id 
+      WHERE {{etiqueta}}
+  )]]
 GROUP BY dim_calendario.ano_mes
 ORDER BY dim_calendario.ano_mes;
 
@@ -74,7 +86,13 @@ WHERE tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
   [[AND {{tipo_solucao}}]]
   [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
-  [[AND {{etiqueta}}]]
+  -- Filtro de Etiqueta via Tabela de Ponte
+  [[AND metabase_tickets.chamado IN (
+      SELECT btt.ticket_id 
+      FROM bridge_ticket_tags btt 
+      JOIN dim_tags dt ON dt.tag_id = btt.tag_id 
+      WHERE {{etiqueta}}
+  )]]
 GROUP BY dim_calendario.data
 ORDER BY dim_calendario.data;
 
@@ -96,6 +114,12 @@ WHERE tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
   [[AND {{tipo_solucao}}]]
   [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
-  [[AND {{etiqueta}}]]
+  -- Filtro de Etiqueta via Tabela de Ponte
+  [[AND metabase_tickets.chamado IN (
+      SELECT btt.ticket_id 
+      FROM bridge_ticket_tags btt 
+      JOIN dim_tags dt ON dt.tag_id = btt.tag_id 
+      WHERE {{etiqueta}}
+  )]]
 GROUP BY dim_calendario.data
 ORDER BY dim_calendario.data;
