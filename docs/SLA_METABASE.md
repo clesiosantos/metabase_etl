@@ -5,6 +5,7 @@ Este documento descreve a configuração das perguntas (cards) no Metabase para 
 ## 1. Regras de Negócio
 - **Filtro de Exclusão:** Por padrão, todos os indicadores ignoram chamados com tipo de solução `Ticket::Duplicado` e `Ticket::Cancelado`.
 - **Cálculo de %:** O percentual é calculado dividindo os chamados 'NO PRAZO' pelo total de chamados que possuem SLA definido (ignora 'SEM SLA').
+- **Multi-Etiquetas:** As consultas utilizam `COUNT(DISTINCT chamado)` para garantir que chamados com múltiplas etiquetas não sejam contados em duplicidade.
 
 ## 2. Filtros Globais (Variáveis)
 Configure as variáveis no Metabase como **Filtro de Campo (Field Filter)**:
@@ -23,8 +24,6 @@ Configure as variáveis no Metabase como **Filtro de Campo (Field Filter)**:
 | `{{tipo_chamado}}` | `metabase_tickets.tipo_chamado` | Categoria |
 | `{{prioridade}}` | `metabase_tickets.prioridade` | Categoria |
 | `{{etiqueta}}` | `dim_tags.name` | Categoria |
-
-> **Nota sobre Etiquetas:** O filtro `{{etiqueta}}` deve ser mapeado obrigatoriamente para a coluna `name` da tabela `dim_tags`. A consulta utiliza uma subquery na tabela de ponte `bridge_ticket_tags` para garantir que o filtro funcione sem duplicar os registros de chamados.
 
 ## 3. Descrição dos Gráficos
 ... (mantém as descrições anteriores) ...
