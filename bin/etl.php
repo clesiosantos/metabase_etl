@@ -1,7 +1,7 @@
 <?php
 /**
  * Data: 26/02/2026
- * Versão: 1.0.3
+ * Versão: 1.0.4
  * Autor: 3P Systems — www.3psystems.com.br
  */
 
@@ -53,7 +53,7 @@ require_once __DIR__ . '/../src/Jobs/TicketsJob.php';
 require_once __DIR__ . '/../src/TicketsEtl.php';
 
 function usage(): void {
-  fwrite(STDERR, "Uso:\n  php bin/etl.php <tickets|changes|problems|timesheet> [--full]\n");
+  fwrite(STDERR, "Uso:\n  php bin/etl.php <all|tickets|changes|problems|timesheet> [--full]\n");
 }
 
 $args = $argv;
@@ -71,20 +71,38 @@ $log = new Logger($CFG['etl']['log_file']);
 $src = Db::pdo($CFG['source']);
 $dst = Db::pdo($CFG['target']);
 
-switch ($entity) {
-  case 'tickets':
-    TicketsEtl::run($src, $dst, $log, $CFG, $mode);
-    break;
-  case 'changes':
-    ChangesJob::run($src, $dst, $mode, $CFG['etl']['window_full_days'] ?? 15, $CFG['etl']['batch_size'] ?? 1000);
-    break;
-  case 'problems':
-    ProblemsJob::run($src, $dst, $mode, $CFG['etl']['window_full_days'] ?? 15, $CFG['etl']['batch_size'] ?? 1000);
-    break;
-  case 'timesheet':
-    TimesheetJob::run($src, $dst, $mode, $CFG['etl']['batch_size'] ?? 1000);
-    break;
-  default:
-    usage();
-    exit(1);
+// Lista de entidades para o comando 'all'
+$entities = ($entity === 'all') 
+    ? ['tickets', 'changes', 'problems', 'timesheet'] 
+    : [$entity];
+
+foreach ($entities as $ent) {
+    $log->info("Iniciando processamento da entidade: $ent", ['mode' => $mode]);
+    
+    try {
+        switch ($ent) {
+            case 'tickets':
+                TicketsEtl::run($src, $dst, $log, $CFG, $mode);
+                break;
+            case 'changes':
+                ChangesJob::run($src, $dst, $mode, $CFG['etl']['window_full_days'] ?? 15, $CFG['etl']['batch_size'] ?? 1000);
+                break;
+            case 'problems':
+                ProblemsJob::run($src, $dst, $mode, $CFG['etl']['window_full_days'] ?? 15, $CFG['etl']['batch_size'] ?? 1000);
+                break;
+            case 'timesheet':
+                TimesheetJob::run($src, $dst, $mode, $CFG['etl']['batch_size'] ?? 1000);
+                break;
+            default:
+                if ($entity !== 'all') {
+                    usage();
+                    exit(1);
+                }
+        }
+        $log->info("Entidade $ent processada com sucesso.");
+    } catch (Throwable $e) {
+        $log->error("Erro ao processar entidade $ent: " . $e->getMessage());
+        // Se estiver rodando 'all', continuamos para a próxima entidade apesar do erro
+        if ($entity !== 'all') exit(1);
+    }
 }
