@@ -16,9 +16,8 @@ Configure as variáveis no Metabase como **Filtro de Campo (Field Filter)**:
 | `{{periodo_fechamento}}` | `metabase_tickets.data_fechamento` | Data |
 | `{{cliente}}` | `metabase_tickets.entidade_cliente` | Categoria |
 | `{{torre}}` | `metabase_tickets.grupo_solucao` | Categoria |
-| `{{tecnico_atribuido}}` | `metabase_tickets.nome_tecnico_responsavel` | Categoria |
+| `{{tecnico}}` | `metabase_tickets.nome_tecnico_responsavel` | Categoria |
 | `{{solicitante}}` | `metabase_tickets.nome_solicitante` | Categoria |
-| `{{tecnico}}` | `metabase_tickets.agente_solucionador` | Categoria |
 | `{{status}}` | `metabase_tickets.status_chamado` | Categoria |
 | `{{tipo_solucao}}` | `metabase_tickets.tipo_solucao` | Categoria |
 | `{{tipo_chamado}}` | `metabase_tickets.tipo_chamado` | Categoria |
