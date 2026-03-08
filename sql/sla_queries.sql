@@ -3,9 +3,9 @@
 -- [[AND {{periodo_fechamento}}]] -- Mapear para metabase_tickets.data_fechamento
 -- [[AND {{cliente}}]]            -- Mapear para metabase_tickets.entidade_cliente
 -- [[AND {{torre}}]]              -- Mapear para metabase_tickets.grupo_solucao
--- [[AND {{tecnico}}]]            -- Mapear para metabase_tickets.nome_tecnico_responsavel
+-- [[AND {{tecnico_atribuido}}]]  -- Mapear para metabase_tickets.nome_tecnico_responsavel
 -- [[AND {{solicitante}}]]        -- Mapear para metabase_tickets.nome_solicitante
--- [[AND {{solucionador}}]]       -- Mapear para metabase_tickets.agente_solucionador
+-- [[AND {{tecnico}}]]            -- Mapear para metabase_tickets.agente_solucionador
 -- [[AND {{status}}]]             -- Mapear para metabase_tickets.status_chamado
 -- [[AND {{tipo_solucao}}]]       -- Mapear para metabase_tickets.tipo_solucao
 -- [[AND {{tipo_chamado}}]]       -- Mapear para metabase_tickets.tipo_chamado
@@ -26,9 +26,9 @@ WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancel
   [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
   [[AND {{torre}}]]
-  [[AND {{tecnico}}]]
+  [[AND {{tecnico_atribuido}}]]
   [[AND {{solicitante}}]]
-  [[AND {{solucionador}}]]
+  [[AND {{tecnico}}]]
   [[AND {{status}}]]
   [[AND {{tipo_solucao}}]]
   [[AND {{tipo_chamado}}]]
@@ -51,9 +51,9 @@ WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancel
   [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
   [[AND {{torre}}]]
-  [[AND {{tecnico}}]]
+  [[AND {{tecnico_atribuido}}]]
   [[AND {{solicitante}}]]
-  [[AND {{solucionador}}]]
+  [[AND {{tecnico}}]]
   [[AND {{status}}]]
   [[AND {{tipo_solucao}}]]
   [[AND {{tipo_chamado}}]]
@@ -76,9 +76,9 @@ WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancel
   [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
   [[AND {{torre}}]]
-  [[AND {{tecnico}}]]
+  [[AND {{tecnico_atribuido}}]]
   [[AND {{solicitante}}]]
-  [[AND {{solucionador}}]]
+  [[AND {{tecnico}}]]
   [[AND {{status}}]]
   [[AND {{tipo_solucao}}]]
   [[AND {{tipo_chamado}}]]
@@ -101,9 +101,9 @@ WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancel
   [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
   [[AND {{torre}}]]
-  [[AND {{tecnico}}]]
+  [[AND {{tecnico_atribuido}}]]
   [[AND {{solicitante}}]]
-  [[AND {{solucionador}}]]
+  [[AND {{tecnico}}]]
   [[AND {{status}}]]
   [[AND {{tipo_solucao}}]]
   [[AND {{tipo_chamado}}]]
