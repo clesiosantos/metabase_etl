@@ -11,13 +11,15 @@
 -- [[AND {{prioridade}}]]         -- Mapear para metabase_tickets.prioridade
 -- [[AND {{etiqueta}}]]           -- Mapear para dim_tags.name
 
--- 1. Volume Total de Chamados
-SELECT COUNT(DISTINCT metabase_tickets.chamado) AS "Total"
+-- 1. Total de Chamado Fechado (Card)
+-- Condição: Status IN ('Solucionado', 'Fechado')
+SELECT COUNT(DISTINCT metabase_tickets.chamado) AS "Total Fechados"
 FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
 LEFT JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
-WHERE 1=1
+WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+  AND metabase_tickets.status_chamado IN ('Solucionado', 'Fechado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
@@ -30,13 +32,20 @@ WHERE 1=1
   [[AND {{prioridade}}]]
   [[AND {{etiqueta}}]];
 
--- 2. Volume por Status
-SELECT status_chamado AS "Status", COUNT(DISTINCT metabase_tickets.chamado) AS "Qtd"
+-- 1.1 Detalhe de Chamados Fechados (Consulta de Clique)
+SELECT 
+    chamado AS "ID",
+    titulo_chamado AS "Título",
+    status_chamado AS "Status",
+    data_criacao AS "Criação",
+    data_solucao AS "Solução",
+    agente_solucionador AS "Técnico Solucionador"
 FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
 LEFT JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
-WHERE 1=1
+WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+  AND metabase_tickets.status_chamado IN ('Solucionado', 'Fechado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
@@ -48,16 +57,17 @@ WHERE 1=1
   [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
   [[AND {{etiqueta}}]]
-GROUP BY status_chamado
-ORDER BY Qtd DESC;
+ORDER BY data_solucao DESC;
 
--- 3. Volume por Categoria (Top 10)
-SELECT categoria AS "Categoria", COUNT(DISTINCT metabase_tickets.chamado) AS "Qtd"
+-- 2. Total de Chamados Aberto (Card)
+-- Condição: Status NOT IN ('Solucionado', 'Fechado')
+SELECT COUNT(DISTINCT metabase_tickets.chamado) AS "Total Abertos"
 FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
 LEFT JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
-WHERE 1=1
+WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+  AND metabase_tickets.status_chamado NOT IN ('Solucionado', 'Fechado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
@@ -68,18 +78,22 @@ WHERE 1=1
   [[AND {{tipo_solucao}}]]
   [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
-  [[AND {{etiqueta}}]]
-GROUP BY categoria
-ORDER BY Qtd DESC
-LIMIT 10;
+  [[AND {{etiqueta}}]];
 
--- 4. Volume por Prioridade
-SELECT prioridade AS "Prioridade", COUNT(DISTINCT metabase_tickets.chamado) AS "Qtd"
+-- 2.1 Detalhe de Chamados Abertos (Consulta de Clique)
+SELECT 
+    chamado AS "ID",
+    titulo_chamado AS "Título",
+    status_chamado AS "Status",
+    data_criacao AS "Criação",
+    nome_tecnico_responsavel AS "Técnico Atribuído",
+    aging_minutos AS "Aging (Min)"
 FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
 LEFT JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
-WHERE 1=1
+WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+  AND metabase_tickets.status_chamado NOT IN ('Solucionado', 'Fechado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
@@ -91,16 +105,19 @@ WHERE 1=1
   [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
   [[AND {{etiqueta}}]]
-GROUP BY prioridade
-ORDER BY prioridade ASC;
+ORDER BY data_criacao ASC;
 
--- 5. Ranking de Etiquetas (Tags)
-SELECT dim_tags.name AS "Etiqueta", COUNT(DISTINCT metabase_tickets.chamado) AS "Qtd"
+-- 3. Chamados Aberto X Fechado - Visão Diária (Últimos 30 dias)
+SELECT
+    dim_calendario.data AS "Dia",
+    COUNT(DISTINCT CASE WHEN status_chamado NOT IN ('Solucionado', 'Fechado') THEN metabase_tickets.chamado END) AS "Abertos",
+    COUNT(DISTINCT CASE WHEN status_chamado IN ('Solucionado', 'Fechado') THEN metabase_tickets.chamado END) AS "Fechados"
 FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
-JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
-JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
-WHERE 1=1
+LEFT JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
+WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+  AND dim_calendario.data >= DATE_SUB(UTC_DATE(), INTERVAL 30 DAY)
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
@@ -112,5 +129,5 @@ WHERE 1=1
   [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
   [[AND {{etiqueta}}]]
-GROUP BY dim_tags.name
-ORDER BY Qtd DESC;
+GROUP BY dim_calendario.data
+ORDER BY dim_calendario.data;

@@ -3,8 +3,10 @@
 Este documento descreve a configuração das perguntas (cards) no Metabase para a aba de **Chamado Geral**.
 
 ## 1. Regras de Negócio
-- **Disponibilidade de Dados:** Todas as tags estão disponíveis no DW.
-- **Filtro Padrão:** Recomenda-se configurar o filtro `{{tipo_solucao}}` no Metabase com o valor padrão "Selecionar todos exceto: Ticket::Duplicado, Ticket::Cancelado" para manter a visão limpa.
+- **Filtro de Exclusão Padrão:** Todas as consultas ignoram por padrão os tipos de solução `Ticket::Duplicado` e `Ticket::Cancelado`.
+- **Definição de Fechado:** Chamados com status 'Solucionado' ou 'Fechado'.
+- **Definição de Aberto:** Chamados com status diferente de 'Solucionado' e 'Fechado'.
+- **Visão Diária:** O gráfico comparativo foca nos últimos 30 dias a partir da data atual.
 
 ## 2. Filtros Globais (Variáveis)
 Configure as variáveis no Metabase como **Filtro de Campo (Field Filter)**:
@@ -24,8 +26,6 @@ Configure as variáveis no Metabase como **Filtro de Campo (Field Filter)**:
 | `{{etiqueta}}` | `dim_tags.name` | Categoria |
 
 ## 3. Descrição dos Gráficos
-1. **Volume Total:** Card numérico com o total de chamados.
-2. **Volume por Status:** Gráfico de pizza ou barras com a distribuição de status.
-3. **Volume por Categoria:** Ranking das categorias mais utilizadas.
-4. **Volume por Prioridade:** Distribuição por nível de prioridade.
-5. **Ranking de Etiquetas:** Gráfico de barras mostrando a frequência das tags.
+1. **Total de Chamado Fechado:** Card numérico exibindo o volume de chamados solucionados/fechados. Possui drill-through para listagem detalhada.
+2. **Total de Chamados Aberto:** Card numérico exibindo o volume de chamados que ainda não foram solucionados. Possui drill-through para listagem detalhada.
+3. **Chamados Aberto X Fechado:** Gráfico de linhas ou barras empilhadas mostrando a evolução diária dos últimos 30 dias.
