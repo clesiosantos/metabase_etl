@@ -9,7 +9,7 @@ Mapeie exatamente estes nomes:
 - {{cliente}} → metabase_tickets.entidade_cliente
 - {{torre}} → metabase_tickets.grupo_solucao
 - {{tecnico}} → metabase_tickets.nome_tecnico_responsavel
-- {{agente_abertura}} → metabase_tickets.nome_solicitante
+- {{solicitante}} → metabase_tickets.nome_solicitante
 - {{agente_solucao}} → metabase_tickets.agente_solucionador
 - {{status}} → metabase_tickets.status_chamado
 - {{tipo_solucao}} → metabase_tickets.tipo_solucao
@@ -23,8 +23,8 @@ Mapeie exatamente estes nomes:
 - Evitar duplicidade por etiquetas: quando usar JOIN com bridge/dim_tags, agregue com COUNT(DISTINCT chamado).
 
 ## Regras Específicas
-- Incidentes: Excluir da volumetria os chamados com agente de abertura = 'zabbix' e prioridade = '3'.
-- Eventos: Considerar SOMENTE os chamados com agente de abertura = 'zabbix' e prioridade = '3' (Média).
+- Incidentes: Excluir da volumetria os chamados com solicitante = 'zabbix' e prioridade = '3'.
+- Eventos: Considerar SOMENTE os chamados com solicitante = 'zabbix' e prioridade = '3' (Média).
 
 ## Arquivos SQL por Aba
 - Visão Geral: sql/book_visao_geral.sql

@@ -1,4 +1,3 @@
-Visão Geral: 6 cards (volumes e % SLA) com filtros padronizados e JOIN no calendário.">
 -- BOOK - ABA VISÃO GERAL
 -- Filtros (Field Filters) em todos os cards:
 -- [[AND {{periodo_abertura}}]]   -> dim_calendario.data
@@ -6,7 +5,7 @@ Visão Geral: 6 cards (volumes e % SLA) com filtros padronizados e JOIN no calen
 -- [[AND {{cliente}}]]            -> metabase_tickets.entidade_cliente
 -- [[AND {{torre}}]]              -> metabase_tickets.grupo_solucao
 -- [[AND {{tecnico}}]]            -> metabase_tickets.nome_tecnico_responsavel
--- [[AND {{agente_abertura}}]]    -> metabase_tickets.nome_solicitante
+-- [[AND {{solicitante}}]]        -> metabase_tickets.nome_solicitante
 -- [[AND {{agente_solucao}}]]     -> metabase_tickets.agente_solucionador
 -- [[AND {{status}}]]             -> metabase_tickets.status_chamado
 -- [[AND {{tipo_solucao}}]]       -> metabase_tickets.tipo_solucao
@@ -27,7 +26,7 @@ WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado','T
   [[AND {{cliente}}]]
   [[AND {{torre}}]]
   [[AND {{tecnico}}]]
-  [[AND {{agente_abertura}}]]
+  [[AND {{solicitante}}]]
   [[AND {{agente_solucao}}]]
   [[AND {{status}}]]
   [[AND {{tipo_solucao}}]]
@@ -49,7 +48,7 @@ WHERE metabase_tickets.status_chamado NOT IN ('Solucionado','Fechado')
   [[AND {{cliente}}]]
   [[AND {{torre}}]]
   [[AND {{tecnico}}]]
-  [[AND {{agente_abertura}}]]
+  [[AND {{solicitante}}]]
   [[AND {{agente_solucao}}]]
   [[AND {{status}}]]
   [[AND {{tipo_solucao}}]]
@@ -68,7 +67,7 @@ WHERE 1=1
   [[AND {{cliente}}]]              -- mapear para metabase_changes.entidade_cliente
   [[AND {{torre}}]]                -- mapear para metabase_changes.grupo_solucao
   [[AND {{tecnico}}]]              -- mapear para metabase_changes.agente_solucionador
-  [[AND {{agente_abertura}}]]      -- mapear para metabase_changes.nome_solicitante
+  [[AND {{solicitante}}]]          -- mapear para metabase_changes.nome_solicitante
   [[AND {{status}}]]               -- mapear para metabase_changes.status_chamado
   [[AND {{tipo_solucao}}]]         -- mapear para metabase_changes.tipo_solucao
   [[AND {{prioridade}}]];          -- mapear para metabase_changes.prioridade
@@ -84,7 +83,7 @@ WHERE 1=1
   [[AND {{cliente}}]]              -- se disponível, entidade_cliente em problems
   [[AND {{torre}}]]                -- se disponível, grupo_solucao
   [[AND {{tecnico}}]]              -- mapear para metabase_problems.agente_solucionador
-  [[AND {{agente_abertura}}]]      -- mapear para metabase_problems.nome_solicitante
+  [[AND {{solicitante}}]]          -- mapear para metabase_problems.nome_solicitante
   [[AND {{status}}]]               -- mapear para metabase_problems.status_chamado
   [[AND {{tipo_solucao}}]]         -- mapear para metabase_problems.tipo_solucao
   [[AND {{prioridade}}]];          -- mapear para metabase_problems.prioridade
@@ -105,7 +104,7 @@ WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado','T
   [[AND {{cliente}}]]
   [[AND {{torre}}]]
   [[AND {{tecnico}}]]
-  [[AND {{agente_abertura}}]]
+  [[AND {{solicitante}}]]
   [[AND {{agente_solucao}}]]
   [[AND {{status}}]]
   [[AND {{tipo_solucao}}]]
@@ -129,7 +128,7 @@ WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado','T
   [[AND {{cliente}}]]
   [[AND {{torre}}]]
   [[AND {{tecnico}}]]
-  [[AND {{agente_abertura}}]]
+  [[AND {{solicitante}}]]
   [[AND {{agente_solucao}}]]
   [[AND {{status}}]]
   [[AND {{tipo_solucao}}]]
