@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 final class TimesheetExtractor {
   public static function fetchChangedTaskIds(PDO $src, string $lastUtc): array {
-    // Usamos '?' para evitar erro de parâmetros nomeados duplicados em UNION
     $sql = "
       SELECT 'Ticket' as type, id FROM glpi_tickettasks WHERE date_mod >= ?
       UNION ALL
@@ -42,14 +41,15 @@ final class TimesheetExtractor {
           tk.begin as data_lancamento,
           (tk.actiontime / 3600) as horas,
           CASE 
-            WHEN WEEKDAY(tk.begin) < 5 AND HOUR(tk.begin) BETWEEN 8 AND 17 THEN 'Comercial'
-            ELSE 'Plantão'
+            WHEN tc.name LIKE '%Plantão%' THEN 'Plantão'
+            ELSE 'Comercial'
           END as tipo_hora,
           UTC_TIMESTAMP() as data_carga
         FROM glpi_$table tk
         JOIN $parentTable p ON p.id = tk.$fk
         LEFT JOIN glpi_entities e ON e.id = p.entities_id
         LEFT JOIN glpi_users u ON u.id = tk.users_id
+        LEFT JOIN glpi_taskcategories tc ON tc.id = tk.taskcategories_id
         LEFT JOIN (
           SELECT users_id, MIN(groups_id) as groups_id 
           FROM glpi_groups_users 
@@ -63,7 +63,6 @@ final class TimesheetExtractor {
     }
 
     if (empty($queries)) {
-        // Retorna um statement vazio se não houver IDs
         return $src->query("SELECT 1 FROM (SELECT 1) AS t WHERE 1=0");
     }
 
