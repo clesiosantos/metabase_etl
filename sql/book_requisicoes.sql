@@ -1,49 +1,26 @@
--- REQUISIÇÕES DE SERVIÇO (tipo_chamado = 'Requisição')
-
--- 1) Volumetria Mensal de Requisições (Criados por mês)
-SELECT
-  dim_calendario.ano_mes AS mes,
-  COUNT(DISTINCT metabase_tickets.chamado) AS total_requisicoes
-FROM metabase_tickets
-JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
-LEFT JOIN bridge_ticket_tags ON bridge_ticket_tags.ticket_id = metabase_tickets.chamado
-LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_ticket_tags.tag_id
-WHERE metabase_tickets.tipo_chamado = 'Requisição'
-  AND COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
-  [[AND {{periodo_abertura}}]]
-  [[AND {{periodo_fechamento}}]]
-  [[AND {{cliente}}]]
-  [[AND {{torre}}]]
+/* REQUISICOES_DATA_TABLE */
+SELECT 
+    r.id,
+    r.assunto,
+    r.data_abertura,
+    r.status,
+    u.nome as solicitante,
+    a.nome as tecnico
+FROM requisicoes r
+LEFT JOIN usuarios u ON r.solicitante_id = u.id
+LEFT JOIN usuarios a ON r.agente_solucao_id = a.id
+WHERE 1=1
   [[AND {{tecnico}}]]
   [[AND {{solicitante}}]]
-  [[AND {{agente_solucao}}]]
+  [[AND {{tecnico}}]]
   [[AND {{status}}]]
-  [[AND {{tipo_solucao}}]]
-  [[AND {{prioridade}}]]
-  [[AND {{etiqueta}}]]
-GROUP BY dim_calendario.ano_mes
-ORDER BY dim_calendario.ano_mes;
 
--- 2) Volumetria por Cliente (Requisições)
-SELECT
-  metabase_tickets.entidade_cliente AS cliente,
-  COUNT(DISTINCT metabase_tickets.chamado) AS total_requisicoes
-FROM metabase_tickets
-JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
-LEFT JOIN bridge_ticket_tags ON bridge_ticket_tags.ticket_id = metabase_tickets.chamado
-LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_ticket_tags.tag_id
-WHERE metabase_tickets.tipo_chamado = 'Requisição'
-  AND COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
-  [[AND {{periodo_abertura}}]]
-  [[AND {{periodo_fechamento}}]]
-  [[AND {{cliente}}]]
-  [[AND {{torre}}]]
+/* REQUISICOES_COUNT */
+SELECT 
+    count(*) as total
+FROM requisicoes r
+WHERE 1=1
   [[AND {{tecnico}}]]
   [[AND {{solicitante}}]]
-  [[AND {{agente_solucao}}]]
+  [[AND {{tecnico}}]]
   [[AND {{status}}]]
-  [[AND {{tipo_solucao}}]]
-  [[AND {{prioridade}}]]
-  [[AND {{etiqueta}}]]
-GROUP BY metabase_tickets.entidade_cliente
-ORDER BY total_requisicoes DESC;
