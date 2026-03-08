@@ -21,7 +21,7 @@ final class TimesheetJob {
           $st = TimesheetExtractor::fetchTaskDetails($src, $chunk);
           $dst->beginTransaction();
           while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
-            $upsert->execute($row);
+            $upsert->execute(self::bindRow($row));
             EtlRun::addUpserted($dst, $runId, 1);
           }
           $dst->commit();
@@ -35,5 +35,22 @@ final class TimesheetJob {
       EtlRun::finishFailed($dst, $runId, $e->getMessage());
       throw $e;
     }
+  }
+
+  private static function bindRow(array $row): array {
+    return [
+      ':id_tarefa' => $row['id_tarefa'],
+      ':tipo_ticket' => $row['tipo_ticket'],
+      ':id_pai' => $row['id_pai'],
+      ':data_abertura_pai' => $row['data_abertura_pai'],
+      ':data_fechamento_pai' => $row['data_fechamento_pai'],
+      ':cliente' => $row['cliente'],
+      ':grupo_solucionador' => $row['grupo_solucionador'],
+      ':tecnico' => $row['tecnico'],
+      ':data_lancamento' => $row['data_lancamento'],
+      ':horas' => $row['horas'],
+      ':tipo_hora' => $row['tipo_hora'],
+      ':data_carga' => $row['data_carga'] ?? gmdate('Y-m-d H:i:s'),
+    ];
   }
 }

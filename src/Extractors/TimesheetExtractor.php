@@ -3,23 +3,20 @@ declare(strict_types=1);
 
 final class TimesheetExtractor {
   public static function fetchChangedTaskIds(PDO $src, string $lastUtc): array {
-    // Busca IDs de tarefas modificadas recentemente em todas as frentes
+    // Usamos '?' para evitar erro de parâmetros nomeados duplicados em UNION
     $sql = "
-      SELECT 'Ticket' as type, id FROM glpi_tickettasks WHERE date_mod >= :last
+      SELECT 'Ticket' as type, id FROM glpi_tickettasks WHERE date_mod >= ?
       UNION ALL
-      SELECT 'Change' as type, id FROM glpi_changetasks WHERE date_mod >= :last
+      SELECT 'Change' as type, id FROM glpi_changetasks WHERE date_mod >= ?
       UNION ALL
-      SELECT 'Problem' as type, id FROM glpi_problemtasks WHERE date_mod >= :last
+      SELECT 'Problem' as type, id FROM glpi_problemtasks WHERE date_mod >= ?
     ";
     $st = $src->prepare($sql);
-    $st->execute([':last' => $lastUtc]);
+    $st->execute([$lastUtc, $lastUtc, $lastUtc]);
     return $st->fetchAll(PDO::FETCH_ASSOC);
   }
 
   public static function fetchTaskDetails(PDO $src, array $tasks): PDOStatement {
-    // Como as tarefas vêm de tabelas diferentes, usamos UNION para unificar a extração
-    // Para performance, filtramos pelos IDs específicos passados
-    
     $queries = [];
     $params = [];
 
@@ -40,30 +37,19 @@ final class TimesheetExtractor {
           p.date as data_abertura_pai,
           p.closedate as data_fechamento_pai,
           e.name as cliente,
-          
-          -- Grupo Solucionador (Lógica simplificada baseada no técnico da tarefa)
           COALESCE(g.name, 'Sem Grupo') as grupo_solucionador,
-          
-          -- Técnico
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) as tecnico,
-          
-          -- Dados da Tarefa
           tk.begin as data_lancamento,
           (tk.actiontime / 3600) as horas,
-          
-          -- Tipo de Hora (Lógica: Comercial se entre 08:00 e 18:00 em dias úteis)
           CASE 
             WHEN WEEKDAY(tk.begin) < 5 AND HOUR(tk.begin) BETWEEN 8 AND 17 THEN 'Comercial'
             ELSE 'Plantão'
           END as tipo_hora,
-          
           UTC_TIMESTAMP() as data_carga
-
         FROM glpi_$table tk
         JOIN $parentTable p ON p.id = tk.$fk
         LEFT JOIN glpi_entities e ON e.id = p.entities_id
         LEFT JOIN glpi_users u ON u.id = tk.users_id
-        -- Tenta pegar o grupo principal do usuário para o Timesheet
         LEFT JOIN (
           SELECT users_id, MIN(groups_id) as groups_id 
           FROM glpi_groups_users 
@@ -74,6 +60,11 @@ final class TimesheetExtractor {
       ";
       
       foreach ($ids as $id) $params[] = $id;
+    }
+
+    if (empty($queries)) {
+        // Retorna um statement vazio se não houver IDs
+        return $src->query("SELECT 1 FROM (SELECT 1) AS t WHERE 1=0");
     }
 
     $fullSql = implode(" UNION ALL ", $queries);
