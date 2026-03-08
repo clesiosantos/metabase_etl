@@ -40,10 +40,7 @@ final class TimesheetExtractor {
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) as tecnico,
           tk.begin as data_lancamento,
           (tk.actiontime / 3600) as horas,
-          CASE 
-            WHEN tc.name LIKE '%Plantão%' THEN 'Plantão'
-            ELSE 'Comercial'
-          END as tipo_hora,
+          COALESCE(tc.name, 'Comercial') as tipo_hora,
           UTC_TIMESTAMP() as data_carga
         FROM glpi_$table tk
         JOIN $parentTable p ON p.id = tk.$fk
