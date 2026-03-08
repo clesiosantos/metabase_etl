@@ -1,7 +1,7 @@
 <?php
 /**
  * Data: 26/02/2026
- * Versão: 1.0.2
+ * Versão: 1.0.3
  * Autor: 3P Systems — www.3psystems.com.br
  */
 
@@ -23,17 +23,17 @@ require_once __DIR__ . '/../src/EtlRun.php';
 require_once __DIR__ . '/../src/EtlError.php';
 require_once __DIR__ . '/../src/Validator.php';
 
-// 3. Carregar Componentes de Tickets (Ordem: Extractor -> Transformer -> Loader)
+// 3. Carregar Componentes de Tickets
 require_once __DIR__ . '/../src/Extractors/TicketsExtractor.php';
 require_once __DIR__ . '/../src/Transformers/TicketsTransformer.php';
 require_once __DIR__ . '/../src/Loaders/TicketsLoader.php';
 
-// 4. Carregar Componentes de Changes (Sem Transformer, direto para Job)
+// 4. Carregar Componentes de Changes
 require_once __DIR__ . '/../src/Extractors/ChangesExtractor.php';
 require_once __DIR__ . '/../src/Loaders/ChangesLoader.php';
 require_once __DIR__ . '/../src/Jobs/ChangesJob.php';
 
-// 5. Carregar Componentes de Problems (Sem Transformer, direto para Job)
+// 5. Carregar Componentes de Problems
 require_once __DIR__ . '/../src/Extractors/ProblemsExtractor.php';
 require_once __DIR__ . '/../src/Loaders/ProblemsLoader.php';
 require_once __DIR__ . '/../src/Jobs/ProblemsJob.php';
@@ -43,12 +43,17 @@ require_once __DIR__ . '/../src/Extractors/TagsExtractor.php';
 require_once __DIR__ . '/../src/Loaders/TagsLoader.php';
 require_once __DIR__ . '/../src/Jobs/TagsJobs.php';
 
-// 7. Carregar Orquestradores (Jobs e ETL)
+// 7. Carregar Componentes de Timesheet
+require_once __DIR__ . '/../src/Extractors/TimesheetExtractor.php';
+require_once __DIR__ . '/../src/Loaders/TimesheetLoader.php';
+require_once __DIR__ . '/../src/Jobs/TimesheetJob.php';
+
+// 8. Carregar Orquestradores
 require_once __DIR__ . '/../src/Jobs/TicketsJob.php';
 require_once __DIR__ . '/../src/TicketsEtl.php';
 
 function usage(): void {
-  fwrite(STDERR, "Uso:\n  php bin/etl.php <tickets|changes|problems> [--full]\n");
+  fwrite(STDERR, "Uso:\n  php bin/etl.php <tickets|changes|problems|timesheet> [--full]\n");
 }
 
 $args = $argv;
@@ -63,8 +68,6 @@ if (!$entity) {
 }
 
 $log = new Logger($CFG['etl']['log_file']);
-
-// Conexões PDO via Db::pdo()
 $src = Db::pdo($CFG['source']);
 $dst = Db::pdo($CFG['target']);
 
@@ -77,6 +80,9 @@ switch ($entity) {
     break;
   case 'problems':
     ProblemsJob::run($src, $dst, $mode, $CFG['etl']['window_full_days'] ?? 15, $CFG['etl']['batch_size'] ?? 1000);
+    break;
+  case 'timesheet':
+    TimesheetJob::run($src, $dst, $mode, $CFG['etl']['batch_size'] ?? 1000);
     break;
   default:
     usage();
