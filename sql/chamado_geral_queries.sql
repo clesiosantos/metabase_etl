@@ -12,13 +12,12 @@
 -- [[AND {{etiqueta}}]]           -- Mapear para dim_tags.name
 
 -- 1. Total de Chamado Fechado (Card)
--- Condição: Status IN ('Solucionado', 'Fechado')
 SELECT COUNT(DISTINCT metabase_tickets.chamado) AS "Total Fechados"
 FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
 LEFT JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
-WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
   AND metabase_tickets.status_chamado IN ('Solucionado', 'Fechado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
@@ -44,7 +43,7 @@ FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
 LEFT JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
-WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
   AND metabase_tickets.status_chamado IN ('Solucionado', 'Fechado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
@@ -60,13 +59,12 @@ WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancel
 ORDER BY data_solucao DESC;
 
 -- 2. Total de Chamados Aberto (Card)
--- Condição: Status NOT IN ('Solucionado', 'Fechado')
 SELECT COUNT(DISTINCT metabase_tickets.chamado) AS "Total Abertos"
 FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
 LEFT JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
-WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
   AND metabase_tickets.status_chamado NOT IN ('Solucionado', 'Fechado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
@@ -92,7 +90,7 @@ FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
 LEFT JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
-WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
   AND metabase_tickets.status_chamado NOT IN ('Solucionado', 'Fechado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
@@ -116,7 +114,7 @@ FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
 LEFT JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
-WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
   AND dim_calendario.data >= DATE_SUB(UTC_DATE(), INTERVAL 30 DAY)
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]

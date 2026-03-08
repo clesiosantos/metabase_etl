@@ -20,7 +20,7 @@ FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
 LEFT JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
-WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
@@ -44,7 +44,7 @@ FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
 LEFT JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
-WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
@@ -68,7 +68,7 @@ FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
 LEFT JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
-WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
@@ -92,7 +92,7 @@ FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
 LEFT JOIN bridge_ticket_tags btt ON btt.ticket_id = metabase_tickets.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = btt.tag_id
-WHERE metabase_tickets.tipo_solucao NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
+WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado', 'Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
