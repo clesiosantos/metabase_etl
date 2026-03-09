@@ -12,7 +12,7 @@
 -- [[AND {{prioridade}}]]         -> metabase_tickets.prioridade
 -- [[AND {{etiqueta}}]]           -> dim_tags.name (via join com bridge_ticket_tags)
 
--- Regra Incidentes (Zabbix): Excluir da volumetria incidentes abertos por zabbix com prioridade = 3 (Média)
+-- Regra Incidentes (Zabbix): Chamados abertos pelo usuário zabbix com prioridade 3 NÃO devem aparecer na volumetria de Incidentes.
 
 -- 1) Volumetria Mensal de Incidentes (Criados por mês)
 SELECT
