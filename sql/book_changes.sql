@@ -1,10 +1,50 @@
--- MUDANÇAS (Change) - Volumetria Mensal
+-- BOOK - ABA MUDANÇAS (CHANGES)
+--
+-- Filtros (Field Filters):
+-- [[AND {{periodo_abertura}}]]   -> dim_calendario.data
+-- [[AND {{periodo_fechamento}}]] -> metabase_changes.data_fechamento
+-- [[AND {{cliente}}]]            -> metabase_changes.entidade_cliente
+-- [[AND {{torre}}]]              -> metabase_changes.grupo_solucao
+-- [[AND {{tecnico}}]]            -> metabase_changes.agente_solucionador
+-- [[AND {{solicitante}}]]        -> metabase_changes.nome_solicitante
+-- [[AND {{status}}]]             -> metabase_changes.status_chamado
+-- [[AND {{tipo_solucao}}]]       -> metabase_changes.tipo_solucao
+-- [[AND {{prioridade}}]]         -> metabase_changes.prioridade
+
+-- 1) Volumetria Mensal de Mudanças (Criados por mês)
 SELECT
-  DATE_FORMAT(metabase_changes.data_id, '%Y-%m') AS mes,
-  COUNT(*) AS total_mudancas
+  dim_calendario.ano_mes AS mes,
+  COUNT(DISTINCT metabase_changes.chamado) AS total_mudancas
 FROM metabase_changes
-WHERE 1=1
-  [[AND {{periodo_abertura}}]]  -- Mapear para metabase_changes.data_id
-  [[AND {{cliente}}]]           -- Se aplicável, mapear para metabase_changes.entidade_cliente (caso disponível)
-GROUP BY DATE_FORMAT(metabase_changes.data_id, '%Y-%m')
-ORDER BY mes;
+JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
+WHERE COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
+  [[AND {{periodo_abertura}}]]
+  [[AND {{periodo_fechamento}}]]
+  [[AND {{cliente}}]]
+  [[AND {{torre}}]]
+  [[AND {{tecnico}}]]
+  [[AND {{solicitante}}]]
+  [[AND {{status}}]]
+  [[AND {{tipo_solucao}}]]
+  [[AND {{prioridade}}]]
+GROUP BY dim_calendario.ano_mes
+ORDER BY dim_calendario.ano_mes;
+
+-- 2) Volumetria por Cliente (Mudanças)
+SELECT
+  metabase_changes.entidade_cliente AS cliente,
+  COUNT(DISTINCT metabase_changes.chamado) AS total_mudancas
+FROM metabase_changes
+JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
+WHERE COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
+  [[AND {{periodo_abertura}}]]
+  [[AND {{periodo_fechamento}}]]
+  [[AND {{cliente}}]]
+  [[AND {{torre}}]]
+  [[AND {{tecnico}}]]
+  [[AND {{solicitante}}]]
+  [[AND {{status}}]]
+  [[AND {{tipo_solucao}}]]
+  [[AND {{prioridade}}]]
+GROUP BY metabase_changes.entidade_cliente
+ORDER BY total_mudancas DESC;

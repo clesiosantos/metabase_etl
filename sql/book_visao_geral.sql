@@ -1,95 +1,132 @@
--- Filtros:
--- [[AND {{unidade}}]]            -> metabase_tickets.unidade_original
--- [[AND {{categoria}}]]          -> metabase_tickets.categoria_n1
--- [[AND {{urgencia}}]]           -> metabase_tickets.urgencia
--- [[AND {{impacto}}]]            -> metabase_tickets.impacto
--- [[AND {{prioridade}}]]         -> metabase_tickets.prioridade
+-- BOOK - ABA VISÃO GERAL
+-- Cards sugeridos (6): Total Chamados, Backlog, Total Mudanças, Total Problemas, %SLA Resposta, %SLA Solução
+--
+-- Filtros (Field Filters):
+-- [[AND {{periodo_abertura}}]]   -> dim_calendario.data
+-- [[AND {{periodo_fechamento}}]] -> metabase_tickets.data_fechamento
+-- [[AND {{cliente}}]]            -> metabase_tickets.entidade_cliente
+-- [[AND {{torre}}]]              -> metabase_tickets.grupo_solucao
 -- [[AND {{tecnico}}]]            -> metabase_tickets.nome_tecnico_responsavel
 -- [[AND {{solicitante}}]]        -> metabase_tickets.nome_solicitante
--- [[AND {{tecnico}}]]            -> metabase_tickets.agente_solucionador
 -- [[AND {{status}}]]             -> metabase_tickets.status_chamado
+-- [[AND {{tipo_solucao}}]]       -> metabase_tickets.tipo_solucao
+-- [[AND {{tipo_chamado}}]]       -> metabase_tickets.tipo_chamado
+-- [[AND {{prioridade}}]]         -> metabase_tickets.prioridade
+-- [[AND {{etiqueta}}]]           -> dim_tags.name (via join com bridge_ticket_tags)
 
-WITH total_tickets AS (
-  SELECT count(*) as total
-  FROM metabase_tickets
-  WHERE 1=1
-  [[AND {{unidade}}]]
-  [[AND {{categoria}}]]
-  [[AND {{urgencia}}]]
-  [[AND {{impacto}}]]
-  [[AND {{prioridade}}]]
+-- 1) Total Chamados (card)
+SELECT
+  COUNT(DISTINCT metabase_tickets.chamado) AS total_chamados
+FROM metabase_tickets
+JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
+LEFT JOIN bridge_ticket_tags ON bridge_ticket_tags.ticket_id = metabase_tickets.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_ticket_tags.tag_id
+WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
+  [[AND {{periodo_abertura}}]]
+  [[AND {{periodo_fechamento}}]]
+  [[AND {{cliente}}]]
+  [[AND {{torre}}]]
   [[AND {{tecnico}}]]
   [[AND {{solicitante}}]]
-  [[AND {{tecnico}}]]
   [[AND {{status}}]]
-),
-
-total_incidentes AS (
-  SELECT count(*) as total
-  FROM metabase_tickets
-  WHERE tipo_chamado = 'Incidente'
-  [[AND {{unidade}}]]
-  [[AND {{categoria}}]]
-  [[AND {{urgencia}}]]
-  [[AND {{impacto}}]]
+  [[AND {{tipo_solucao}}]]
+  [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
+  [[AND {{etiqueta}}]];
+
+-- 2) Backlog (card) — chamados em aberto
+SELECT
+  COUNT(DISTINCT metabase_tickets.chamado) AS backlog
+FROM metabase_tickets
+JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
+LEFT JOIN bridge_ticket_tags ON bridge_ticket_tags.ticket_id = metabase_tickets.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_ticket_tags.tag_id
+WHERE metabase_tickets.status_chamado NOT IN ('Solucionado','Fechado')
+  AND COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
+  [[AND {{periodo_abertura}}]]
+  [[AND {{periodo_fechamento}}]]
+  [[AND {{cliente}}]]
+  [[AND {{torre}}]]
   [[AND {{tecnico}}]]
   [[AND {{solicitante}}]]
-  [[AND {{tecnico}}]]
   [[AND {{status}}]]
-),
-
-total_mudancas AS (
-  SELECT count(*) as total
-  FROM metabase_changes
-  WHERE 1=1
-  [[AND {{tecnico}}]]              -- mapear para metabase_changes.agente_solucionador
-  [[AND {{solicitante}}]]          -- mapear para metabase_changes.nome_solicitante
-),
-
-total_problemas AS (
-  SELECT count(*) as total
-  FROM metabase_problems
-  WHERE 1=1
-  [[AND {{tecnico}}]]              -- mapear para metabase_problems.agente_solucionador
-  [[AND {{solicitante}}]]          -- mapear para metabase_problems.nome_solicitante
-),
-
-sla_cumprido AS (
-  SELECT count(*) as total
-  FROM metabase_tickets
-  WHERE sla_atendido = 'Sim'
-  [[AND {{unidade}}]]
-  [[AND {{categoria}}]]
-  [[AND {{urgencia}}]]
-  [[AND {{impacto}}]]
+  [[AND {{tipo_solucao}}]]
+  [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
+  [[AND {{etiqueta}}]];
+
+-- 3) Total Mudanças (card)
+SELECT
+  COUNT(DISTINCT metabase_changes.chamado) AS total_mudancas
+FROM metabase_changes
+JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
+WHERE COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
+  [[AND {{periodo_abertura}}]]
+  [[AND {{cliente}}]]
+  [[AND {{torre}}]]
+  [[AND {{status}}]]
+  [[AND {{prioridade}}]];
+
+-- 4) Total Problemas (card)
+SELECT
+  COUNT(DISTINCT metabase_problems.chamado) AS total_problemas
+FROM metabase_problems
+JOIN dim_calendario ON dim_calendario.data = metabase_problems.data_id
+WHERE COALESCE(metabase_problems.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
+  [[AND {{periodo_abertura}}]]
+  [[AND {{cliente}}]]
+  [[AND {{torre}}]]
+  [[AND {{status}}]]
+  [[AND {{prioridade}}]];
+
+-- 5) %SLA Resposta (card) — usa sla_atendimento_ok
+SELECT
+  ROUND(
+    100 *
+    SUM(CASE WHEN metabase_tickets.sla_atendimento_ok = 1 THEN 1 ELSE 0 END)
+    /
+    NULLIF(SUM(CASE WHEN metabase_tickets.sla_atendimento_ok IS NOT NULL THEN 1 ELSE 0 END), 0),
+    2
+  ) AS percentual_sla_resposta
+FROM metabase_tickets
+JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
+LEFT JOIN bridge_ticket_tags ON bridge_ticket_tags.ticket_id = metabase_tickets.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_ticket_tags.tag_id
+WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
+  [[AND {{periodo_abertura}}]]
+  [[AND {{periodo_fechamento}}]]
+  [[AND {{cliente}}]]
+  [[AND {{torre}}]]
   [[AND {{tecnico}}]]
   [[AND {{solicitante}}]]
-  [[AND {{tecnico}}]]
   [[AND {{status}}]]
-),
-
-first_call_resolution AS (
-  SELECT count(*) as total
-  FROM metabase_tickets
-  WHERE fcr = 'Sim'
-  [[AND {{unidade}}]]
-  [[AND {{categoria}}]]
-  [[AND {{urgencia}}]]
-  [[AND {{impacto}}]]
+  [[AND {{tipo_solucao}}]]
+  [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
+  [[AND {{etiqueta}}]];
+
+-- 6) %SLA Solução (card) — usa sla_solucao_ok
+SELECT
+  ROUND(
+    100 *
+    SUM(CASE WHEN metabase_tickets.sla_solucao_ok = 1 THEN 1 ELSE 0 END)
+    /
+    NULLIF(SUM(CASE WHEN metabase_tickets.sla_solucao_ok IS NOT NULL THEN 1 ELSE 0 END), 0),
+    2
+  ) AS percentual_sla_solucao
+FROM metabase_tickets
+JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
+LEFT JOIN bridge_ticket_tags ON bridge_ticket_tags.ticket_id = metabase_tickets.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_ticket_tags.tag_id
+WHERE COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
+  [[AND {{periodo_abertura}}]]
+  [[AND {{periodo_fechamento}}]]
+  [[AND {{cliente}}]]
+  [[AND {{torre}}]]
   [[AND {{tecnico}}]]
   [[AND {{solicitante}}]]
-  [[AND {{tecnico}}]]
   [[AND {{status}}]]
-)
-
-SELECT 
-  t.total as tickets_totais,
-  i.total as incidentes_totais,
-  m.total as mudancas_totais,
-  p.total as problemas_totais,
-  ROUND((s.total::float / NULLIF(t.total, 0)) * 100, 2) as percentual_sla,
-  ROUND((f.total::float / NULLIF(t.total, 0)) * 100, 2) as percentual_fcr
-FROM total_tickets t, total_incidentes i, total_mudancas m, total_problemas p, sla_cumprido s, first_call_resolution f
+  [[AND {{tipo_solucao}}]]
+  [[AND {{tipo_chamado}}]]
+  [[AND {{prioridade}}]]
+  [[AND {{etiqueta}}]];
