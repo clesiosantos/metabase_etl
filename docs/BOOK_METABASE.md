@@ -13,7 +13,46 @@ Este dashboard consolida visão mensal e rankings do GLPI (DW) com abas:
 > - Operação em **UTC**.
 > - Sempre usar `JOIN dim_calendario ON dim_calendario.data = <tabela>.data_id` para o filtro de período de abertura.
 > - Para evitar duplicidade ao usar tags: `COUNT(DISTINCT <id>)`.
-> - Excluir por padrão “Duplicado/Cancelado”: `COALESCE(tipo_solucao,'') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')`.
+> - Excluir por padrão "Duplicado/Cancelado": `COALESCE(tipo_solucao,'') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')`.
+
+## Infra / Agendamento (Oracle Linux 9.6)
+
+### Relógio do servidor (IMPORTANTE)
+O **systemd timer** usa o relógio do sistema. Se a data/hora estiver errada, o ETL vai rodar fora do horário esperado.
+
+Recomendação:
+- **Timezone do servidor:** UTC
+- **Sincronização NTP:** habilitada (chrony)
+
+Checklist (no servidor):
+- Validar status: `timedatectl`
+- Ajustar timezone: `timedatectl set-timezone UTC`
+- Habilitar NTP: `timedatectl set-ntp true`
+- Verificar serviço: `systemctl status chronyd`
+
+> Observação: o ETL já força `date_default_timezone_set('UTC')` e as conexões MySQL usam `SET SESSION time_zone = '+00:00'`.
+
+### systemd (service + timer)
+Arquivos do projeto:
+- `ops/systemd/etl-glpi-metabase.service`
+- `ops/systemd/etl-glpi-metabase.timer`
+
+Como aplicar (no servidor):
+- Copiar o `.service` e `.timer` para `/etc/systemd/system/`
+- Recarregar systemd: `systemctl daemon-reload`
+- Habilitar e iniciar o timer: `systemctl enable --now etl-glpi-metabase.timer`
+- Conferir agendamento: `systemctl list-timers | grep etl-glpi-metabase`
+
+### Rotação de logs (logrotate)
+Arquivo do projeto:
+- `ops/logrotate/etl-glpi-metabase`
+
+Como aplicar (no servidor):
+- Copiar para `/etc/logrotate.d/etl-glpi-metabase`
+
+Logs gerados pelo ETL:
+- `ETL_LOG_FILE` no `.env` (padrão atual: `/data/etl-glpi-metabase/logs/etl.log`)
+- Regra do logrotate cobre: `/data/etl-glpi-metabase/logs/*.log`
 
 ## Filtros (Field Filters) — padrão do BOOK
 Crie os filtros no Metabase com exatamente estes nomes e mapeamentos.
