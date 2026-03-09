@@ -1,0 +1,11 @@
+[Unit]
+Description=Agendamento do ETL GLPI -> DW (Metabase)
+
+[Timer]
+# Rodar a cada 15 minutos
+OnCalendar=*:0/15
+Persistent=true
+Unit=etl-glpi-metabase.service
+
+[Install]
+WantedBy=timers.target

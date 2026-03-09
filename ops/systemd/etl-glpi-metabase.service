@@ -1,0 +1,16 @@
+[Unit]
+Description=ETL GLPI -> DW (Metabase)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/data/etl-glpi-metabase
+ExecStart=/usr/bin/php /data/etl-glpi-metabase/bin/etl.php all
+
+# Mantém o output no journal do systemd (além do log em arquivo gerado pela aplicação)
+StandardOutput=journal
+StandardError=journal
+
+# Evita execuções que fiquem presas indefinidamente
+TimeoutStartSec=2h
