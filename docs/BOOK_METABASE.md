@@ -99,6 +99,7 @@ Crie os filtros no Metabase com exatamente estes nomes e mapeamentos.
 ## Regras Específicas (Zabbix)
 - **Incidentes:** excluir da volumetria chamados com `nome_solicitante = 'zabbix'` e `prioridade = '3'`.
 - **Eventos:** considerar **somente** chamados com `nome_solicitante = 'zabbix'` e `prioridade = '3'`.
+- **Tipo de solução (padrão do dashboard):** manter exclusão padrão por SQL com `COALESCE(tipo_solucao,'') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')`. No Metabase, o filtro `{{tipo_solucao}}` deve trabalhar sobre o conjunto já excluído por essa regra.
 
 ## SQLs para implementação (por aba)
 Os arquivos abaixo já estão prontos para copiar e colar no Metabase.
@@ -114,7 +115,19 @@ Os arquivos abaixo já estão prontos para copiar e colar no Metabase.
     - `6.1) Drill-down %SLA Solução`
   - Configuração sugerida no Metabase: em cada card numérico, usar o comportamento de clique para abrir a respectiva consulta de detalhe em formato de tabela, reaproveitando os mesmos filtros do dashboard
 - **Incidentes:** `sql/book_incidentes.sql`
-  - Volumetria mensal e por cliente (com regra Zabbix de exclusão)
+  - Relatórios:
+    - Volume Total de Incidente Abertos
+    - Volume Total de Incidente Fechado
+    - Volume Total de Incidente Backlog
+    - Volume Total de Backlog de Incidentes por Status e Aging
+    - Volume Total de Incidente com etiqueta Crise
+    - Volume Total de Incidente por Criticidade
+    - Incidente - Top 10 de Categoria - Mês
+  - Drill-downs em tabela para todos os cards e gráficos da aba
+  - Regras fixas da aba:
+    - `metabase_tickets.tipo_chamado = 'Incidente'`
+    - excluir `Ticket::Duplicado` e `Ticket::Cancelado`
+    - excluir `nome_solicitante = 'zabbix'` com `prioridade = '3'`
 - **Requisições:** `sql/book_requisicoes.sql`
   - Volumetria mensal e por cliente (tipo_chamado = 'Requisição')
 - **Eventos:** `sql/book_eventos.sql`
