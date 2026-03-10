@@ -115,7 +115,7 @@ Os arquivos abaixo já estão prontos para copiar e colar no Metabase.
     - `6.1) Drill-down %SLA Solução`
   - Configuração sugerida no Metabase: em cada card numérico, usar o comportamento de clique para abrir a respectiva consulta de detalhe em formato de tabela, reaproveitando os mesmos filtros do dashboard
 - **Incidentes:** `sql/book_incidentes.sql`
-  - Relatórios:
+  - Relatórios em formato de **gráfico**:
     - Volume Total de Incidente Abertos
     - Volume Total de Incidente Fechado
     - Volume Total de Incidente Backlog
@@ -123,7 +123,7 @@ Os arquivos abaixo já estão prontos para copiar e colar no Metabase.
     - Volume Total de Incidente com etiqueta Crise
     - Volume Total de Incidente por Criticidade
     - Incidente - Top 10 de Categoria - Mês
-  - Drill-downs em tabela para todos os cards e gráficos da aba
+  - Drill-downs em tabela para todos os gráficos da aba
   - Regras fixas da aba:
     - `metabase_tickets.tipo_chamado = 'Incidente'`
     - excluir `Ticket::Duplicado` e `Ticket::Cancelado`

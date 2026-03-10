@@ -1,5 +1,5 @@
 -- BOOK - ABA INCIDENTES
--- Relatórios solicitados:
+-- Relatórios solicitados em formato de gráfico:
 -- 1) Volume Total de Incidente Abertos
 -- 2) Volume Total de Incidente Fechado
 -- 3) Volume Total de Incidente Backlog
@@ -14,7 +14,7 @@
 -- - Regra Incidentes (Zabbix): chamados com nome_solicitante = 'zabbix' e prioridade = '3' NÃO entram na volumetria de Incidentes
 -- - Regra Eventos: chamados com nome_solicitante = 'zabbix' e prioridade = '3' pertencem à aba Eventos
 --
--- Filtros (Field Filters) para cards baseados em tickets:
+-- Filtros (Field Filters) para gráficos baseados em tickets:
 -- [[AND {{periodo_abertura}}]]   -> dim_calendario.data
 -- [[AND {{periodo_fechamento}}]] -> metabase_tickets.data_fechamento
 -- [[AND {{cliente}}]]            -> metabase_tickets.entidade_cliente
@@ -31,8 +31,9 @@
 -- [[AND {{faixa_aging_drill}}]]  -> metabase_tickets.faixa_aging
 -- [[AND {{categoria_drill}}]]    -> metabase_tickets.categoria
 
--- 1) Volume Total de Incidente Abertos (card)
+-- 1) Volume Total de Incidente Abertos (gráfico)
 SELECT
+  dim_calendario.ano_mes AS mes,
   COUNT(DISTINCT metabase_tickets.chamado) AS total_incidentes_abertos
 FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
@@ -51,7 +52,9 @@ WHERE metabase_tickets.tipo_chamado = 'Incidente'
   [[AND {{tipo_solucao}}]]
   [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
-  [[AND {{etiqueta}}]];
+  [[AND {{etiqueta}}]]
+GROUP BY dim_calendario.ano_mes
+ORDER BY dim_calendario.ano_mes;
 
 -- 1.1) Drill-down Volume Total de Incidente Abertos (tabela)
 SELECT DISTINCT
@@ -89,8 +92,9 @@ WHERE metabase_tickets.tipo_chamado = 'Incidente'
   [[AND {{etiqueta}}]]
 ORDER BY metabase_tickets.data_criacao DESC, metabase_tickets.chamado DESC;
 
--- 2) Volume Total de Incidente Fechado (card)
+-- 2) Volume Total de Incidente Fechado (gráfico)
 SELECT
+  DATE_FORMAT(metabase_tickets.data_fechamento, '%Y-%m') AS mes,
   COUNT(DISTINCT metabase_tickets.chamado) AS total_incidentes_fechados
 FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
@@ -98,6 +102,7 @@ LEFT JOIN bridge_ticket_tags ON bridge_ticket_tags.ticket_id = metabase_tickets.
 LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_ticket_tags.tag_id
 WHERE metabase_tickets.tipo_chamado = 'Incidente'
   AND metabase_tickets.status_chamado IN ('Solucionado','Fechado')
+  AND metabase_tickets.data_fechamento IS NOT NULL
   AND NOT (LOWER(metabase_tickets.nome_solicitante) = 'zabbix' AND metabase_tickets.prioridade = '3')
   AND COALESCE(metabase_tickets.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
@@ -110,7 +115,9 @@ WHERE metabase_tickets.tipo_chamado = 'Incidente'
   [[AND {{tipo_solucao}}]]
   [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
-  [[AND {{etiqueta}}]];
+  [[AND {{etiqueta}}]]
+GROUP BY DATE_FORMAT(metabase_tickets.data_fechamento, '%Y-%m')
+ORDER BY DATE_FORMAT(metabase_tickets.data_fechamento, '%Y-%m');
 
 -- 2.1) Drill-down Volume Total de Incidente Fechado (tabela)
 SELECT DISTINCT
@@ -149,8 +156,9 @@ WHERE metabase_tickets.tipo_chamado = 'Incidente'
   [[AND {{etiqueta}}]]
 ORDER BY metabase_tickets.data_fechamento DESC, metabase_tickets.chamado DESC;
 
--- 3) Volume Total de Incidente Backlog (card)
+-- 3) Volume Total de Incidente Backlog (gráfico)
 SELECT
+  dim_calendario.ano_mes AS mes,
   COUNT(DISTINCT metabase_tickets.chamado) AS total_incidentes_backlog
 FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
@@ -170,7 +178,9 @@ WHERE metabase_tickets.tipo_chamado = 'Incidente'
   [[AND {{tipo_solucao}}]]
   [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
-  [[AND {{etiqueta}}]];
+  [[AND {{etiqueta}}]]
+GROUP BY dim_calendario.ano_mes
+ORDER BY dim_calendario.ano_mes;
 
 -- 3.1) Drill-down Volume Total de Incidente Backlog (tabela)
 SELECT DISTINCT
@@ -210,7 +220,7 @@ WHERE metabase_tickets.tipo_chamado = 'Incidente'
   [[AND {{etiqueta}}]]
 ORDER BY metabase_tickets.data_criacao DESC, metabase_tickets.chamado DESC;
 
--- 4) Volume Total de Backlog de Incidentes - por Status e Aging
+-- 4) Volume Total de Backlog de Incidentes - por Status e Aging (gráfico)
 SELECT
   metabase_tickets.status_chamado,
   COALESCE(metabase_tickets.faixa_aging, 'Não classificado') AS faixa_aging,
@@ -280,8 +290,9 @@ WHERE metabase_tickets.tipo_chamado = 'Incidente'
   [[AND {{faixa_aging_drill}}]]
 ORDER BY metabase_tickets.status_chamado, metabase_tickets.data_criacao DESC, metabase_tickets.chamado DESC;
 
--- 5) Volume Total de Incidente com etiqueta Crise (card)
+-- 5) Volume Total de Incidente com etiqueta Crise (gráfico)
 SELECT
+  dim_calendario.ano_mes AS mes,
   COUNT(DISTINCT metabase_tickets.chamado) AS total_incidentes_crise
 FROM metabase_tickets
 JOIN dim_calendario ON dim_calendario.data = metabase_tickets.data_id
@@ -301,7 +312,9 @@ WHERE metabase_tickets.tipo_chamado = 'Incidente'
   [[AND {{tipo_solucao}}]]
   [[AND {{tipo_chamado}}]]
   [[AND {{prioridade}}]]
-  [[AND {{etiqueta}}]];
+  [[AND {{etiqueta}}]]
+GROUP BY dim_calendario.ano_mes
+ORDER BY dim_calendario.ano_mes;
 
 -- 5.1) Drill-down Volume Total de Incidente com etiqueta Crise (tabela)
 SELECT DISTINCT
@@ -340,7 +353,7 @@ WHERE metabase_tickets.tipo_chamado = 'Incidente'
   [[AND {{etiqueta}}]]
 ORDER BY metabase_tickets.data_criacao DESC, metabase_tickets.chamado DESC;
 
--- 6) Volume Total de Incidente por Criticidade
+-- 6) Volume Total de Incidente por Criticidade (gráfico)
 SELECT
   COALESCE(metabase_tickets.prioridade, 'Não informada') AS criticidade,
   COUNT(DISTINCT metabase_tickets.chamado) AS total_incidentes
@@ -401,7 +414,7 @@ WHERE metabase_tickets.tipo_chamado = 'Incidente'
   [[AND {{etiqueta}}]]
 ORDER BY metabase_tickets.prioridade, metabase_tickets.data_criacao DESC, metabase_tickets.chamado DESC;
 
--- 7) Incidente - Top 10 de Categoria - Mês
+-- 7) Incidente - Top 10 de Categoria - Mês (gráfico)
 SELECT
   COALESCE(metabase_tickets.categoria, 'Sem categoria') AS categoria,
   COUNT(DISTINCT metabase_tickets.chamado) AS total_incidentes
