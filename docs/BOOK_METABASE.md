@@ -80,6 +80,8 @@ Crie os filtros no Metabase com exatamente estes nomes e mapeamentos.
 - `{{status}}` → `metabase_changes.status_chamado`
 - `{{tipo_solucao}}` → `metabase_changes.tipo_solucao`
 - `{{prioridade}}` → `metabase_changes.prioridade`
+- `{{tipo_chamado}}` → **não se aplica** em `metabase_changes`
+- `{{etiqueta}}` → **não se aplica como Field Filter padrão** em `metabase_changes` (a tabela possui apenas o campo textual `tags`, sem bridge para `dim_tags`)
 
 ### Problemas (metabase_problems)
 - `{{periodo_abertura}}` → `dim_calendario.data`

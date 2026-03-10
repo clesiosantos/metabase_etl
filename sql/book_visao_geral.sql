@@ -1,7 +1,7 @@
 -- BOOK - ABA VISÃO GERAL
 -- Cards sugeridos (6): Total Chamados, Backlog, Total Mudanças, Total Problemas, %SLA Resposta, %SLA Solução
 --
--- Filtros (Field Filters):
+-- Filtros (Field Filters) para cards baseados em tickets:
 -- [[AND {{periodo_abertura}}]]   -> dim_calendario.data
 -- [[AND {{periodo_fechamento}}]] -> metabase_tickets.data_fechamento
 -- [[AND {{cliente}}]]            -> metabase_tickets.entidade_cliente
@@ -56,15 +56,30 @@ WHERE metabase_tickets.status_chamado NOT IN ('Solucionado','Fechado')
   [[AND {{etiqueta}}]];
 
 -- 3) Total Mudanças (card)
+-- Filtros aplicáveis em metabase_changes:
+-- [[AND {{periodo_abertura}}]]   -> dim_calendario.data
+-- [[AND {{periodo_fechamento}}]] -> metabase_changes.data_fechamento
+-- [[AND {{cliente}}]]            -> metabase_changes.entidade_cliente
+-- [[AND {{torre}}]]              -> metabase_changes.grupo_solucao
+-- [[AND {{tecnico}}]]            -> metabase_changes.agente_solucionador
+-- [[AND {{solicitante}}]]        -> metabase_changes.nome_solicitante
+-- [[AND {{status}}]]             -> metabase_changes.status_chamado
+-- [[AND {{tipo_solucao}}]]       -> metabase_changes.tipo_solucao
+-- [[AND {{prioridade}}]]         -> metabase_changes.prioridade
+-- Observação: metabase_changes não possui tipo_chamado e não há bridge de tags para usar {{etiqueta}} como Field Filter.
 SELECT
   COUNT(DISTINCT metabase_changes.chamado) AS total_mudancas
 FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
 WHERE COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
+  [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
   [[AND {{torre}}]]
+  [[AND {{tecnico}}]]
+  [[AND {{solicitante}}]]
   [[AND {{status}}]]
+  [[AND {{tipo_solucao}}]]
   [[AND {{prioridade}}]];
 
 -- 4) Total Problemas (card)
