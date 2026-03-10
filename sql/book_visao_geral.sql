@@ -83,15 +83,30 @@ WHERE COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','T
   [[AND {{prioridade}}]];
 
 -- 4) Total Problemas (card)
+-- Filtros aplicáveis em metabase_problems:
+-- [[AND {{periodo_abertura}}]]   -> dim_calendario.data
+-- [[AND {{periodo_fechamento}}]] -> metabase_problems.data_fechamento
+-- [[AND {{cliente}}]]            -> metabase_problems.entidade_cliente
+-- [[AND {{torre}}]]              -> metabase_problems.grupo_solucao
+-- [[AND {{tecnico}}]]            -> metabase_problems.agente_solucionador
+-- [[AND {{solicitante}}]]        -> metabase_problems.nome_solicitante
+-- [[AND {{status}}]]             -> metabase_problems.status_chamado
+-- [[AND {{tipo_solucao}}]]       -> metabase_problems.tipo_solucao
+-- [[AND {{prioridade}}]]         -> metabase_problems.prioridade
+-- Observação: metabase_problems não possui tipo_chamado e não há bridge de tags para usar {{etiqueta}} como Field Filter.
 SELECT
   COUNT(DISTINCT metabase_problems.chamado) AS total_problemas
 FROM metabase_problems
 JOIN dim_calendario ON dim_calendario.data = metabase_problems.data_id
 WHERE COALESCE(metabase_problems.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
+  [[AND {{periodo_fechamento}}]]
   [[AND {{cliente}}]]
   [[AND {{torre}}]]
+  [[AND {{tecnico}}]]
+  [[AND {{solicitante}}]]
   [[AND {{status}}]]
+  [[AND {{tipo_solucao}}]]
   [[AND {{prioridade}}]];
 
 -- 5) %SLA Resposta (card) — usa sla_atendimento_ok

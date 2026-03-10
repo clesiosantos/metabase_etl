@@ -93,6 +93,8 @@ Crie os filtros no Metabase com exatamente estes nomes e mapeamentos.
 - `{{status}}` → `metabase_problems.status_chamado`
 - `{{tipo_solucao}}` → `metabase_problems.tipo_solucao`
 - `{{prioridade}}` → `metabase_problems.prioridade`
+- `{{tipo_chamado}}` → **não se aplica** em `metabase_problems`
+- `{{etiqueta}}` → **não se aplica como Field Filter padrão** em `metabase_problems` (a tabela possui apenas o campo textual `tags`, sem bridge para `dim_tags`)
 
 ## Regras Específicas (Zabbix)
 - **Incidentes:** excluir da volumetria chamados com `nome_solicitante = 'zabbix'` e `prioridade = '3'`.
