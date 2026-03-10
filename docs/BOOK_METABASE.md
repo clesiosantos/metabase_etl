@@ -105,6 +105,14 @@ Os arquivos abaixo já estão prontos para copiar e colar no Metabase.
 
 - **Visão Geral:** `sql/book_visao_geral.sql`
   - 6 cards: Total Chamados, Backlog, Total Mudanças, Total Problemas, %SLA Resposta, %SLA Solução
+  - 6 consultas de **drill-down em tabela**:
+    - `1.1) Drill-down Total Chamados`
+    - `2.1) Drill-down Backlog`
+    - `3.1) Drill-down Total Mudanças`
+    - `4.1) Drill-down Total Problemas`
+    - `5.1) Drill-down %SLA Resposta`
+    - `6.1) Drill-down %SLA Solução`
+  - Configuração sugerida no Metabase: em cada card numérico, usar o comportamento de clique para abrir a respectiva consulta de detalhe em formato de tabela, reaproveitando os mesmos filtros do dashboard
 - **Incidentes:** `sql/book_incidentes.sql`
   - Volumetria mensal e por cliente (com regra Zabbix de exclusão)
 - **Requisições:** `sql/book_requisicoes.sql`
