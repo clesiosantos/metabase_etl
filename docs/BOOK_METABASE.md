@@ -98,7 +98,7 @@ Crie os filtros no Metabase com exatamente estes nomes e mapeamentos.
 
 ## Regras Específicas (Zabbix)
 - **Incidentes:** excluir da volumetria chamados com `nome_solicitante = 'zabbix'` e `prioridade = '3'`.
-- **Eventos:** considerar **somente** chamados com `nome_solicitante = 'integracao.api'` e `prioridade = '3'`.
+- **Eventos:** considerar **somente** chamados com `nome_solicitante = 'zabbix'` e `prioridade = '3'`.
 - **Tipo de solução (padrão do dashboard):** manter exclusão padrão por SQL com `COALESCE(tipo_solucao,'') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')`. No Metabase, o filtro `{{tipo_solucao}}` deve trabalhar sobre o conjunto já excluído por essa regra.
 
 ## SQLs para implementação (por aba)
@@ -150,7 +150,16 @@ Os arquivos abaixo já estão prontos para copiar e colar no Metabase.
     - considerar somente `prioridade = '3'`
     - excluir `Ticket::Duplicado` e `Ticket::Cancelado`
 - **SLA:** `sql/book_sla.sql`
-  - %SLA Resposta, %SLA Solução e volumetria Dentro/Fora
+  - Relatórios em formato de **gráfico**:
+    - % de SLA de Resposta - Incidente
+    - % de SLA de Solução - Incidente
+    - % de SLA de Resposta - Requisições
+    - % de SLA de Solução - Requisições
+  - Drill-downs em tabela para todos os gráficos da aba
+  - Regras fixas da aba:
+    - excluir `Ticket::Duplicado` e `Ticket::Cancelado`
+    - para Incidentes, excluir `nome_solicitante = 'zabbix'` com `prioridade = '3'`
+    - chamados `nome_solicitante = 'zabbix'` com `prioridade = '3'` pertencem à aba Eventos
 - **Mudanças (Changes):** `sql/book_changes.sql`
   - Volumetria mensal e por cliente
 - **Problemas (Problems):** `sql/book_problems.sql`
