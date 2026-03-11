@@ -129,7 +129,15 @@ Os arquivos abaixo já estão prontos para copiar e colar no Metabase.
     - excluir `Ticket::Duplicado` e `Ticket::Cancelado`
     - excluir `nome_solicitante = 'zabbix'` com `prioridade = '3'`
 - **Requisições:** `sql/book_requisicoes.sql`
-  - Volumetria mensal e por cliente (tipo_chamado = 'Requisição')
+  - Relatórios em formato de **gráfico**:
+    - Volume Total de Requisições Abertas
+    - Volume Total de Requisições Fechadas
+    - Volume Total de Requisições Backlog por Status e Aging
+    - Requisição - Top 10 de Categoria
+  - Drill-downs em tabela para todos os gráficos da aba
+  - Regras fixas da aba:
+    - `metabase_tickets.tipo_chamado = 'Requisição'`
+    - excluir `Ticket::Duplicado` e `Ticket::Cancelado`
 - **Eventos:** `sql/book_eventos.sql`
   - Volumetria mensal e por cliente (regra Zabbix de inclusão)
 - **SLA:** `sql/book_sla.sql`
