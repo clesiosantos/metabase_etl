@@ -249,7 +249,7 @@ GROUP BY
   COALESCE(metabase_tickets.faixa_aging, 'Não classificado')
 ORDER BY
   metabase_tickets.status_chamado,
-  FIELD(COALESCE(metabase_tickets.faixa_aging, 'Não classificado'), '0 a 3 dias', 'Até 5 dias', 'Até 10 dias', 'Até 15 dias', 'Até 30 dias', 'Maior que 30 dias', 'Não classificado');
+  FIELD(faixa_aging, '0 a 3 dias', 'Até 5 dias', 'Até 10 dias', 'Até 15 dias', 'Até 30 dias', 'Maior que 30 dias', 'Não classificado');
 
 -- 4.1) Drill-down Backlog de Incidentes - por Status e Aging (tabela)
 SELECT DISTINCT
