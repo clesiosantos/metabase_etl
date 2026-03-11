@@ -98,7 +98,7 @@ Crie os filtros no Metabase com exatamente estes nomes e mapeamentos.
 
 ## Regras Específicas (Zabbix)
 - **Incidentes:** excluir da volumetria chamados com `nome_solicitante = 'zabbix'` e `prioridade = '3'`.
-- **Eventos:** considerar **somente** chamados com `nome_solicitante = 'zabbix'` e `prioridade = '3'`.
+- **Eventos:** considerar **somente** chamados com `nome_solicitante = 'integracao.api'` e `prioridade = '3'`.
 - **Tipo de solução (padrão do dashboard):** manter exclusão padrão por SQL com `COALESCE(tipo_solucao,'') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')`. No Metabase, o filtro `{{tipo_solucao}}` deve trabalhar sobre o conjunto já excluído por essa regra.
 
 ## SQLs para implementação (por aba)
@@ -139,7 +139,16 @@ Os arquivos abaixo já estão prontos para copiar e colar no Metabase.
     - `metabase_tickets.tipo_chamado = 'Requisição'`
     - excluir `Ticket::Duplicado` e `Ticket::Cancelado`
 - **Eventos:** `sql/book_eventos.sql`
-  - Volumetria mensal e por cliente (regra Zabbix de inclusão)
+  - Relatórios em formato de **gráfico**:
+    - Volume Total de Eventos Abertas
+    - Volume Total de Eventos Fechado
+    - Volume Total de Eventos Backlog
+    - Evento - Top 10 de Categoria
+  - Drill-downs em tabela para todos os gráficos da aba
+  - Regras fixas da aba:
+    - considerar somente `nome_solicitante = 'integracao.api'`
+    - considerar somente `prioridade = '3'`
+    - excluir `Ticket::Duplicado` e `Ticket::Cancelado`
 - **SLA:** `sql/book_sla.sql`
   - %SLA Resposta, %SLA Solução e volumetria Dentro/Fora
 - **Mudanças (Changes):** `sql/book_changes.sql`
