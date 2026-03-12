@@ -74,14 +74,15 @@ Crie os filtros no Metabase com exatamente estes nomes e mapeamentos.
 - `{{periodo_abertura}}` → `dim_calendario.data`
 - `{{periodo_fechamento}}` → `metabase_changes.data_fechamento`
 - `{{cliente}}` → `metabase_changes.entidade_cliente`
-- `{{torre}}` → `metabase_changes.grupo_solucao`
+- `{{torre}}` → `metabase_changes.grupo_solucionador`
 - `{{tecnico}}` → `metabase_changes.agente_solucionador`
-- `{{solicitante}}` → `metabase_changes.nome_solicitante`
+- `{{agente_abertura}}` → `metabase_changes.nome_solicitante`
+- `{{agente_solucao}}` → `metabase_changes.agente_solucionador`
 - `{{status}}` → `metabase_changes.status_chamado`
 - `{{tipo_solucao}}` → `metabase_changes.tipo_solucao`
 - `{{prioridade}}` → `metabase_changes.prioridade`
+- `{{etiqueta}}` → `metabase_changes.tags` (**texto**; não há bridge para `dim_tags`)
 - `{{tipo_chamado}}` → **não se aplica** em `metabase_changes`
-- `{{etiqueta}}` → **não se aplica como Field Filter padrão** em `metabase_changes` (a tabela possui apenas o campo textual `tags`, sem bridge para `dim_tags`)
 
 ### Problemas (metabase_problems)
 - `{{periodo_abertura}}` → `dim_calendario.data`
@@ -161,6 +162,12 @@ Os arquivos abaixo já estão prontos para copiar e colar no Metabase.
     - para Incidentes, excluir `nome_solicitante = 'zabbix'` com `prioridade = '3'`
     - chamados `nome_solicitante = 'zabbix'` com `prioridade = '3'` pertencem à aba Eventos
 - **Mudanças (Changes):** `sql/book_changes.sql`
-  - Volumetria mensal e por cliente
+  - Relatórios em formato de **gráfico**:
+    - Volume Total de Mudanças Abertas
+    - Volume Total de Mudanças Fechadas
+    - Top 10 - Por Classificação Técnica
+    - Volume Total de Mudanças - Por Categoria
+    - % de Mudança Executada com Sucesso
+  - Drill-downs em tabela para todos os gráficos da aba
 - **Problemas (Problems):** `sql/book_problems.sql`
   - Volumetria mensal e por cliente
