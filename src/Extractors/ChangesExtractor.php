@@ -89,7 +89,7 @@ final class ChangesExtractor {
         SUBSTRING_INDEX(ic.completename, ' > ', 1) AS categoria,
         SUBSTRING_INDEX(SUBSTRING_INDEX(ic.completename, ' > ', 2), ' > ', -1) AS subcategoria,
         SUBSTRING_INDEX(ic.completename, ' > ', -1) AS servico,
-        
+
         styp.name AS tipo_solucao,
         CASE WHEN styp.name LIKE '%::%' THEN SUBSTRING_INDEX(styp.name, '::', 1) ELSE NULL END AS disciplina_solucao,
         CASE WHEN styp.name LIKE '%::%' THEN SUBSTRING_INDEX(styp.name, '::', -1) ELSE styp.name END AS modelo_solucao,
@@ -100,6 +100,15 @@ final class ChangesExtractor {
         SUBSTRING_INDEX(gsol.completename, ' > ', 1) AS tipo_contrato,
         SUBSTRING_INDEX(SUBSTRING_INDEX(gsol.completename, ' > ', 2), ' > ', -1) AS grupo_solucao,
         SUBSTRING_INDEX(gsol.completename, ' > ', -1) AS tipo_atividade,
+
+        -- Campos adicionais (Plugin Fields - Gestão de Mudanças)
+        cf.name AS classificacao,
+        ct.name AS classificacao_tecnica,
+        amb.name AS ambiente,
+        f.datainiciomudanafield AS data_inicio_mudanca,
+        f.datafimmudanafield AS data_fim_mudanca,
+        f.justificativafield AS justificativa,
+        f.impactoaonegociofield AS impacto_negocio,
 
         COALESCE(NULLIF(TRIM(CONCAT(IFNULL(utech.firstname,''),' ',IFNULL(utech.realname,''))),''), utech.name) AS agente_solucionador,
 
@@ -120,6 +129,12 @@ final class ChangesExtractor {
       LEFT JOIN glpi_entities e ON e.id = c.entities_id
       LEFT JOIN glpi_locations l ON l.id = c.locations_id
       LEFT JOIN glpi_users u_req ON u_req.id = c.users_id_recipient
+
+      -- Plugin Fields - Gestão de Mudanças
+      LEFT JOIN glpi_plugin_fields_changegestodemudanas f ON f.items_id = c.id
+      LEFT JOIN glpi_plugin_fields_classificaofielddropdowns cf ON cf.id = f.plugin_fields_classificaofielddropdowns_id
+      LEFT JOIN glpi_plugin_fields_classificaotecnicafielddropdowns ct ON ct.id = f.plugin_fields_classificaotecnicafielddropdowns_id
+      LEFT JOIN glpi_plugin_fields_ambientefielddropdowns amb ON amb.id = f.plugin_fields_ambientefielddropdowns_id
       
       -- Join para Modelo de Solução
       LEFT JOIN glpi_itilsolutions isol ON (isol.items_id = c.id AND isol.itemtype = 'Change')

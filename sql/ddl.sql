@@ -94,6 +94,15 @@ CREATE TABLE IF NOT EXISTS metabase_changes (
     tipo_contrato VARCHAR(100),
     grupo_solucao VARCHAR(100),
     tipo_atividade VARCHAR(100),
+
+    classificacao VARCHAR(255),
+    classificacao_tecnica VARCHAR(255),
+    ambiente VARCHAR(255),
+    data_inicio_mudanca DATETIME,
+    data_fim_mudanca DATETIME,
+    justificativa TEXT,
+    impacto_negocio TEXT,
+
     agente_solucionador VARCHAR(255),
     nome_solicitante VARCHAR(255),
     entidade_cliente VARCHAR(255),

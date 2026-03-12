@@ -13,6 +13,11 @@ final class ChangesLoader {
         tipo_solucao, disciplina_solucao, modelo_solucao,
         grupo_solucionador, grupo_solucionador_nome, id_grupo_solucionador,
         tipo_contrato, grupo_solucao, tipo_atividade,
+
+        classificacao, classificacao_tecnica, ambiente,
+        data_inicio_mudanca, data_fim_mudanca,
+        justificativa, impacto_negocio,
+
         agente_solucionador, nome_solicitante,
         entidade_cliente, localizacao_fisica,
         tags,
@@ -28,6 +33,11 @@ final class ChangesLoader {
         :tipo_solucao, :disciplina_solucao, :modelo_solucao,
         :grupo_solucionador, :grupo_solucionador_nome, :id_grupo_solucionador,
         :tipo_contrato, :grupo_solucao, :tipo_atividade,
+
+        :classificacao, :classificacao_tecnica, :ambiente,
+        :data_inicio_mudanca, :data_fim_mudanca,
+        :justificativa, :impacto_negocio,
+
         :agente_solucionador, :nome_solicitante,
         :entidade_cliente, :localizacao_fisica,
         :tags,
@@ -63,6 +73,15 @@ final class ChangesLoader {
         tipo_contrato=VALUES(tipo_contrato),
         grupo_solucao=VALUES(grupo_solucao),
         tipo_atividade=VALUES(tipo_atividade),
+
+        classificacao=VALUES(classificacao),
+        classificacao_tecnica=VALUES(classificacao_tecnica),
+        ambiente=VALUES(ambiente),
+        data_inicio_mudanca=VALUES(data_inicio_mudanca),
+        data_fim_mudanca=VALUES(data_fim_mudanca),
+        justificativa=VALUES(justificativa),
+        impacto_negocio=VALUES(impacto_negocio),
+
         agente_solucionador=VALUES(agente_solucionador),
         nome_solicitante=VALUES(nome_solicitante),
         entidade_cliente=VALUES(entidade_cliente),

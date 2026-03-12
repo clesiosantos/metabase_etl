@@ -93,6 +93,14 @@ final class ChangesJob {
       ':grupo_solucao' => $row['grupo_solucao'] ?? null,
       ':tipo_atividade' => $row['tipo_atividade'] ?? null,
 
+      ':classificacao' => $row['classificacao'] ?? null,
+      ':classificacao_tecnica' => $row['classificacao_tecnica'] ?? null,
+      ':ambiente' => $row['ambiente'] ?? null,
+      ':data_inicio_mudanca' => $row['data_inicio_mudanca'] ?? null,
+      ':data_fim_mudanca' => $row['data_fim_mudanca'] ?? null,
+      ':justificativa' => $row['justificativa'] ?? null,
+      ':impacto_negocio' => $row['impacto_negocio'] ?? null,
+
       ':agente_solucionador' => $row['agente_solucionador'] ?? null,
       ':nome_solicitante' => $row['nome_solicitante'] ?? null,
 
