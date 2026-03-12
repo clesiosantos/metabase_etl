@@ -169,5 +169,10 @@ Os arquivos abaixo já estão prontos para copiar e colar no Metabase.
     - Volume Total de Mudanças - Por Categoria
     - % de Mudança Executada com Sucesso
   - Drill-downs em tabela para todos os gráficos da aba
+  - Regras fixas da aba:
+    - excluir `Ticket::Duplicado` e `Ticket::Cancelado`
+    - **Abertas:** status diferente de `Aplicado`, `Cancelado`, `Recusado`, `Fechado`
+    - **Fechadas:** `status_chamado = 'Fechado'` (por `data_fechamento`)
+    - **% Sucesso:** calculado sobre as **Fechadas**, considerando `tipo_solucao` contendo "sucesso" (case-insensitive)
 - **Problemas (Problems):** `sql/book_problems.sql`
   - Volumetria mensal e por cliente
