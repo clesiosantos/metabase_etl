@@ -8,12 +8,15 @@ final class ChangesJob {
     $runId = EtlRun::start($dst, $entity, $mode, $windowFullDays, $batchSize, $tablesUpdated);
 
     try {
+      $fullStartUtc = gmdate('Y-m-d H:i:s', time() - ($windowFullDays * 86400));
+
       $lastUtc = Checkpoint::get($dst, $entity);
       if (!$lastUtc || $mode === 'full') {
         $lastUtc = '1970-01-01 00:00:00';
+        $fullStartUtc = $lastUtc;
       }
 
-      $ids = ChangesExtractor::fetchChangedIds($src, $lastUtc, $lastUtc);
+      $ids = ChangesExtractor::fetchChangedIds($src, $lastUtc, $fullStartUtc);
       $idsSelected = count($ids);
       EtlRun::setSelected($dst, $runId, $idsSelected);
 

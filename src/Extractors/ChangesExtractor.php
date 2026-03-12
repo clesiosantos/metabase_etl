@@ -37,17 +37,17 @@ final class ChangesExtractor {
 
         CASE c.status
             WHEN 1 THEN 'Novo'
-            WHEN 2 THEN 'Em avaliação'
-            WHEN 3 THEN 'Em aprovação'
-            WHEN 4 THEN 'Aceita'
-            WHEN 5 THEN 'Pendente'
-            WHEN 6 THEN 'Em teste'
-            WHEN 7 THEN 'Qualificação'
-            WHEN 8 THEN 'Aplicada'
-            WHEN 9 THEN 'Revisão'
-            WHEN 10 THEN 'Fechada'
-            WHEN 11 THEN 'Cancelada'
-            WHEN 12 THEN 'Recusada'
+            WHEN 9 THEN 'Avaliação'
+            WHEN 10 THEN 'Aprovação'
+            WHEN 7 THEN 'Aceito'
+            WHEN 4 THEN 'Pendente'
+            WHEN 11 THEN 'Testando'
+            WHEN 12 THEN 'Qualificação'
+            WHEN 8 THEN 'Revisão'
+            WHEN 5 THEN 'Aplicado'
+            WHEN 14 THEN 'Cancelado'
+            WHEN 13 THEN 'Recusado'
+            WHEN 6 THEN 'Fechado'
             ELSE 'Outro'
         END AS status_chamado,
 
