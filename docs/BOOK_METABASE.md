@@ -88,14 +88,15 @@ Crie os filtros no Metabase com exatamente estes nomes e mapeamentos.
 - `{{periodo_abertura}}` → `dim_calendario.data`
 - `{{periodo_fechamento}}` → `metabase_problems.data_fechamento`
 - `{{cliente}}` → `metabase_problems.entidade_cliente`
-- `{{torre}}` → `metabase_problems.grupo_solucao`
+- `{{torre}}` → `metabase_problems.grupo_solucionador`
 - `{{tecnico}}` → `metabase_problems.agente_solucionador`
-- `{{solicitante}}` → `metabase_problems.nome_solicitante`
+- `{{agente_abertura}}` → `metabase_problems.nome_solicitante`
+- `{{agente_solucao}}` → `metabase_problems.agente_solucionador`
 - `{{status}}` → `metabase_problems.status_chamado`
 - `{{tipo_solucao}}` → `metabase_problems.tipo_solucao`
 - `{{prioridade}}` → `metabase_problems.prioridade`
+- `{{etiqueta}}` → `dim_tags.name` (via `LEFT JOIN bridge_problem_tags` + `LEFT JOIN dim_tags`)
 - `{{tipo_chamado}}` → **não se aplica** em `metabase_problems`
-- `{{etiqueta}}` → **não se aplica como Field Filter padrão** em `metabase_problems` (a tabela possui apenas o campo textual `tags`, sem bridge para `dim_tags`)
 
 ## Regras Específicas (Zabbix)
 - **Incidentes:** excluir da volumetria chamados com `nome_solicitante = 'zabbix'` e `prioridade = '3'`.

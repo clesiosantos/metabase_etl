@@ -5,10 +5,15 @@ final class ProblemsExtractor {
       SELECT DISTINCT id
       FROM glpi_problems
       WHERE is_deleted = 0
-        AND date_mod >= ?
+        AND (
+          date_mod >= ?
+          OR `date` >= ?
+          OR solvedate >= ?
+          OR closedate >= ?
+        )
     ";
     $st = $src->prepare($sql);
-    $st->execute([$lastUtc]);
+    $st->execute([$lastUtc, $fullStartUtc, $fullStartUtc, $fullStartUtc]);
     return array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
   }
 
@@ -31,13 +36,15 @@ final class ProblemsExtractor {
         DATE(p.date) AS data_id,
 
         CASE p.status
-            WHEN 1 THEN 'Novo'
-            WHEN 2 THEN 'Em andamento'
-            WHEN 3 THEN 'Em planejamento'
-            WHEN 4 THEN 'Pendente'
-            WHEN 5 THEN 'Resolvido'
-            WHEN 6 THEN 'Fechado'
-            ELSE 'Outro'
+          WHEN 1 THEN 'Novo'
+          WHEN 2 THEN 'Em atendimento (atribuido)'
+          WHEN 3 THEN 'Em atendimento (planejado)'
+          WHEN 7 THEN 'Aceito'
+          WHEN 4 THEN 'Pendente'
+          WHEN 5 THEN 'Solucionado'
+          WHEN 8 THEN 'Em Observação'
+          WHEN 6 THEN 'Fechado'
+          ELSE 'Outro'
         END AS status_chamado,
 
         CAST(p.priority AS CHAR) AS prioridade,
@@ -78,17 +85,19 @@ final class ProblemsExtractor {
         SUBSTRING_INDEX(ic.completename, ' > ', 1) AS categoria,
         SUBSTRING_INDEX(SUBSTRING_INDEX(ic.completename, ' > ', 2), ' > ', -1) AS subcategoria,
         SUBSTRING_INDEX(ic.completename, ' > ', -1) AS servico,
-        
+
         styp.name AS tipo_solucao,
         CASE WHEN styp.name LIKE '%::%' THEN SUBSTRING_INDEX(styp.name, '::', 1) ELSE NULL END AS disciplina_solucao,
         CASE WHEN styp.name LIKE '%::%' THEN SUBSTRING_INDEX(styp.name, '::', -1) ELSE styp.name END AS modelo_solucao,
 
-        NULL AS grupo_solucionador,
-        NULL AS grupo_solucionador_nome,
-        NULL AS id_grupo_solucionador,
-        NULL AS tipo_contrato,
-        NULL AS grupo_solucao,
-        NULL AS tipo_atividade,
+        gsol.completename AS grupo_solucionador,
+        gsol.name AS grupo_solucionador_nome,
+        gsol.id AS id_grupo_solucionador,
+        SUBSTRING_INDEX(gsol.completename, ' > ', 1) AS tipo_contrato,
+        SUBSTRING_INDEX(SUBSTRING_INDEX(gsol.completename, ' > ', 2), ' > ', -1) AS grupo_solucao,
+        SUBSTRING_INDEX(gsol.completename, ' > ', -1) AS tipo_atividade,
+
+        cr.name AS causa_raiz,
 
         COALESCE(NULLIF(TRIM(CONCAT(IFNULL(utech.firstname,''),' ',IFNULL(utech.realname,''))),''), utech.name) AS agente_solucionador,
 
@@ -109,10 +118,22 @@ final class ProblemsExtractor {
       LEFT JOIN glpi_entities e ON e.id = p.entities_id
       LEFT JOIN glpi_locations l ON l.id = p.locations_id
       LEFT JOIN glpi_users u_req ON u_req.id = p.users_id_recipient
+
+      -- Plugin Fields - Gestão de Problemas (Causa raiz)
+      LEFT JOIN glpi_plugin_fields_problemgestaoproblemas f ON f.items_id = p.id
+      LEFT JOIN glpi_plugin_fields_causaraizfielddropdowns cr ON cr.id = f.plugin_fields_causaraizfielddropdowns_id
       
       -- Join para Modelo de Solução
       LEFT JOIN glpi_itilsolutions isol ON (isol.items_id = p.id AND isol.itemtype = 'Problem')
       LEFT JOIN glpi_solutiontypes styp ON styp.id = isol.solutiontypes_id
+
+      LEFT JOIN (
+        SELECT problems_id, MIN(groups_id) AS groups_id
+        FROM glpi_problems_groups
+        WHERE type = 2
+        GROUP BY problems_id
+      ) pg1 ON pg1.problems_id = p.id
+      LEFT JOIN glpi_groups gsol ON gsol.id = pg1.groups_id
 
       LEFT JOIN (
         SELECT problems_id, MIN(users_id) AS users_id

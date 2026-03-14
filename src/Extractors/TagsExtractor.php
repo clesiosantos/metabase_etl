@@ -59,4 +59,25 @@ final class TagsExtractor {
     $st->execute(array_values($changeIds));
     return $st;
   }
+
+  public static function fetchProblemTagLinks(PDO $src, array $problemIds): PDOStatement {
+    if (!$problemIds) {
+      throw new RuntimeException("Lista de problemIds vazia em fetchProblemTagLinks()");
+    }
+
+    $placeholders = implode(',', array_fill(0, count($problemIds), '?'));
+
+    $sql = "
+      SELECT
+        items_id AS problem_id,
+        plugin_tag_tags_id AS tag_id
+      FROM glpi_plugin_tag_tagitems
+      WHERE itemtype = 'Problem'
+        AND items_id IN ($placeholders)
+    ";
+
+    $st = $src->prepare($sql);
+    $st->execute(array_values($problemIds));
+    return $st;
+  }
 }

@@ -88,4 +88,36 @@ final class TagsJobs {
       throw $e;
     }
   }
+
+  public static function refreshProblemLinks(PDO $src, PDO $dst, array $problemIds): int {
+    if (!$problemIds) {
+      return 0;
+    }
+
+    $dst->beginTransaction();
+    try {
+      TagsLoader::deleteProblemLinks($dst, $problemIds);
+
+      $stLinks  = TagsExtractor::fetchProblemTagLinks($src, $problemIds);
+      $upBridge = TagsLoader::upsertBridgeProblemTags($dst);
+
+      $count = 0;
+      $now = gmdate('Y-m-d H:i:s');
+
+      while ($row = $stLinks->fetch(PDO::FETCH_ASSOC)) {
+        $upBridge->execute([
+          ':problem_id' => (int)$row['problem_id'],
+          ':tag_id' => (int)$row['tag_id'],
+          ':data_carga' => $now
+        ]);
+        $count++;
+      }
+
+      $dst->commit();
+      return $count;
+    } catch (Throwable $e) {
+      $dst->rollBack();
+      throw $e;
+    }
+  }
 }

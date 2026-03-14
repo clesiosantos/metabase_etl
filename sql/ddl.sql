@@ -144,6 +144,7 @@ CREATE TABLE IF NOT EXISTS metabase_problems (
     tipo_contrato VARCHAR(100),
     grupo_solucao VARCHAR(100),
     tipo_atividade VARCHAR(100),
+    causa_raiz VARCHAR(255),
     agente_solucionador VARCHAR(255),
     nome_solicitante VARCHAR(255),
     entidade_cliente VARCHAR(255),
@@ -198,6 +199,13 @@ CREATE TABLE IF NOT EXISTS bridge_change_tags (
     tag_id INT,
     data_carga DATETIME,
     PRIMARY KEY (change_id, tag_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS bridge_problem_tags (
+    problem_id INT,
+    tag_id INT,
+    data_carga DATETIME,
+    PRIMARY KEY (problem_id, tag_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS etl_checkpoint (

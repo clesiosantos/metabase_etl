@@ -3,19 +3,28 @@ final class ProblemsJob {
 
   public static function run(PDO $src, PDO $dst, string $mode, int $windowFullDays, int $batchSize): void {
     $entity = 'problems';
-    $tablesUpdated = ['metabase_problems'];
+    $tablesUpdated = ['metabase_problems', 'dim_tags', 'bridge_problem_tags'];
 
     $runId = EtlRun::start($dst, $entity, $mode, $windowFullDays, $batchSize, $tablesUpdated);
 
     try {
+      $fullStartUtc = gmdate('Y-m-d H:i:s', time() - ($windowFullDays * 86400));
+
       $lastUtc = Checkpoint::get($dst, $entity);
       if (!$lastUtc || $mode === 'full') {
         $lastUtc = '1970-01-01 00:00:00';
+        $fullStartUtc = $lastUtc;
       }
 
-      $ids = ProblemsExtractor::fetchChangedIds($src, $lastUtc, $lastUtc);
+      $ids = ProblemsExtractor::fetchChangedIds($src, $lastUtc, $fullStartUtc);
       $idsSelected = count($ids);
       EtlRun::setSelected($dst, $runId, $idsSelected);
+
+      // TAGS: mantém dim_tags sincronizada e atualiza ponte só para os problemas impactados
+      TagsJobs::syncDimTags($src, $dst);
+      if ($idsSelected > 0) {
+        TagsJobs::refreshProblemLinks($src, $dst, $ids);
+      }
 
       $upsert = ProblemsLoader::upsertStatement($dst);
 
@@ -89,6 +98,8 @@ final class ProblemsJob {
       ':tipo_contrato' => $row['tipo_contrato'] ?? null,
       ':grupo_solucao' => $row['grupo_solucao'] ?? null,
       ':tipo_atividade' => $row['tipo_atividade'] ?? null,
+
+      ':causa_raiz' => $row['causa_raiz'] ?? null,
 
       ':agente_solucionador' => $row['agente_solucionador'] ?? null,
       ':nome_solicitante' => $row['nome_solicitante'] ?? null,
