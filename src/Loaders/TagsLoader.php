@@ -32,6 +32,16 @@ final class TagsLoader {
     return $dst->prepare($sql);
   }
 
+  public static function upsertBridgeChangeTags(PDO $dst): PDOStatement {
+    $sql = "
+      INSERT INTO bridge_change_tags (change_id, tag_id, data_carga)
+      VALUES (:change_id, :tag_id, :data_carga)
+      ON DUPLICATE KEY UPDATE
+        data_carga=VALUES(data_carga)
+    ";
+    return $dst->prepare($sql);
+  }
+
   public static function deleteTicketLinks(PDO $dst, array $ticketIds): void {
     if (!$ticketIds) {
       return;
@@ -41,5 +51,16 @@ final class TagsLoader {
     $sql = "DELETE FROM bridge_ticket_tags WHERE ticket_id IN ($placeholders)";
     $st = $dst->prepare($sql);
     $st->execute(array_values($ticketIds));
+  }
+
+  public static function deleteChangeLinks(PDO $dst, array $changeIds): void {
+    if (!$changeIds) {
+      return;
+    }
+
+    $placeholders = implode(',', array_fill(0, count($changeIds), '?'));
+    $sql = "DELETE FROM bridge_change_tags WHERE change_id IN ($placeholders)";
+    $st = $dst->prepare($sql);
+    $st->execute(array_values($changeIds));
   }
 }

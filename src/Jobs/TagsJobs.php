@@ -56,4 +56,36 @@ final class TagsJobs {
       throw $e;
     }
   }
+
+  public static function refreshChangeLinks(PDO $src, PDO $dst, array $changeIds): int {
+    if (!$changeIds) {
+      return 0;
+    }
+
+    $dst->beginTransaction();
+    try {
+      TagsLoader::deleteChangeLinks($dst, $changeIds);
+
+      $stLinks  = TagsExtractor::fetchChangeTagLinks($src, $changeIds);
+      $upBridge = TagsLoader::upsertBridgeChangeTags($dst);
+
+      $count = 0;
+      $now = gmdate('Y-m-d H:i:s');
+
+      while ($row = $stLinks->fetch(PDO::FETCH_ASSOC)) {
+        $upBridge->execute([
+          ':change_id' => (int)$row['change_id'],
+          ':tag_id' => (int)$row['tag_id'],
+          ':data_carga' => $now
+        ]);
+        $count++;
+      }
+
+      $dst->commit();
+      return $count;
+    } catch (Throwable $e) {
+      $dst->rollBack();
+      throw $e;
+    }
+  }
 }

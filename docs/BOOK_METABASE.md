@@ -81,7 +81,7 @@ Crie os filtros no Metabase com exatamente estes nomes e mapeamentos.
 - `{{status}}` → `metabase_changes.status_chamado`
 - `{{tipo_solucao}}` → `metabase_changes.tipo_solucao`
 - `{{prioridade}}` → `metabase_changes.prioridade`
-- `{{etiqueta}}` → `metabase_changes.tags` (**texto**; não há bridge para `dim_tags`)
+- `{{etiqueta}}` → `dim_tags.name` (via `LEFT JOIN bridge_change_tags` + `LEFT JOIN dim_tags`)
 - `{{tipo_chamado}}` → **não se aplica** em `metabase_changes`
 
 ### Problemas (metabase_problems)

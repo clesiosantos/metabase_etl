@@ -2,9 +2,9 @@
 -- Relatórios solicitados em formato de gráfico:
 -- 1) Volume Total de Mudanças Abertas
 -- 2) Volume Total de Mudanças Fechadas
--- 3) Top 10 - Por Classificação Técnica
+-- 3) Top 10 - Por Classificação Tecnica
 -- 4) Volume Total de Mudanças - Por Categoria
--- 5) % de Mudança Executada com Sucesso
+-- 5) % de Mudança Executada Com sucesso
 --
 -- Regras obrigatórias desta aba:
 -- - Excluir por padrão Ticket::Duplicado e Ticket::Cancelado
@@ -20,13 +20,13 @@
 -- [[AND {{status}}]]              -> metabase_changes.status_chamado
 -- [[AND {{tipo_solucao}}]]        -> metabase_changes.tipo_solucao
 -- [[AND {{prioridade}}]]          -> metabase_changes.prioridade
--- [[AND {{etiqueta}}]]            -> metabase_changes.tags (texto; não há bridge com dim_tags)
+-- [[AND {{etiqueta}}]]            -> dim_tags.name (via bridge_change_tags)
 --
 -- Observações:
 -- - metabase_changes não possui tipo_chamado (a aba já é Mudanças)
--- - "Classificação Técnica" foi mapeada para metabase_changes.tipo_atividade
--- - "Mudança Executada com Sucesso" foi mapeada para tipo_solucao contendo a palavra "sucesso" (case-insensitive)
+-- - "Classificação Tecnica" foi mapeada para metabase_changes.tipo_atividade
 -- - Status de Mudanças (DW): Novo, Avaliação, Aprovação, Aceito, Pendente, Testando, Qualificação, Revisão, Aplicado, Cancelado, Recusado, Fechado
+-- - % de sucesso: considera mudanças Fechadas que possuem alguma tag cujo nome contém "sucesso" (case-insensitive)
 --
 -- Filtros adicionais de drill-down:
 -- [[AND {{classificacao_tecnica_drill}}]] -> metabase_changes.tipo_atividade
@@ -38,6 +38,8 @@ SELECT
   COUNT(DISTINCT metabase_changes.chamado) AS total_mudancas_abertas
 FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
+LEFT JOIN bridge_change_tags ON bridge_change_tags.change_id = metabase_changes.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_change_tags.tag_id
 WHERE metabase_changes.status_chamado NOT IN ('Aplicado','Cancelado','Recusado','Fechado')
   AND COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
@@ -73,6 +75,8 @@ SELECT
   metabase_changes.tags
 FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
+LEFT JOIN bridge_change_tags ON bridge_change_tags.change_id = metabase_changes.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_change_tags.tag_id
 WHERE metabase_changes.status_chamado NOT IN ('Aplicado','Cancelado','Recusado','Fechado')
   AND COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
@@ -94,6 +98,8 @@ SELECT
   COUNT(DISTINCT metabase_changes.chamado) AS total_mudancas_fechadas
 FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
+LEFT JOIN bridge_change_tags ON bridge_change_tags.change_id = metabase_changes.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_change_tags.tag_id
 WHERE metabase_changes.status_chamado = 'Fechado'
   AND metabase_changes.data_fechamento IS NOT NULL
   AND COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
@@ -130,6 +136,8 @@ SELECT
   metabase_changes.tags
 FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
+LEFT JOIN bridge_change_tags ON bridge_change_tags.change_id = metabase_changes.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_change_tags.tag_id
 WHERE metabase_changes.status_chamado = 'Fechado'
   AND COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
@@ -145,12 +153,14 @@ WHERE metabase_changes.status_chamado = 'Fechado'
   [[AND {{etiqueta}}]]
 ORDER BY metabase_changes.data_fechamento DESC, metabase_changes.chamado DESC;
 
--- 3) Top 10 - Por Classificação Técnica (gráfico)
+-- 3) Top 10 - Por Classificação Tecnica (gráfico)
 SELECT
   COALESCE(metabase_changes.tipo_atividade, 'Sem classificação') AS classificacao_tecnica,
   COUNT(DISTINCT metabase_changes.chamado) AS total_mudancas
 FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
+LEFT JOIN bridge_change_tags ON bridge_change_tags.change_id = metabase_changes.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_change_tags.tag_id
 WHERE COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
@@ -167,7 +177,7 @@ GROUP BY COALESCE(metabase_changes.tipo_atividade, 'Sem classificação')
 ORDER BY total_mudancas DESC
 LIMIT 10;
 
--- 3.1) Drill-down Top 10 - Por Classificação Técnica (tabela)
+-- 3.1) Drill-down Top 10 - Por Classificação Tecnica (tabela)
 SELECT
   metabase_changes.chamado AS id,
   metabase_changes.titulo_chamado AS titulo,
@@ -186,6 +196,8 @@ SELECT
   metabase_changes.tags
 FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
+LEFT JOIN bridge_change_tags ON bridge_change_tags.change_id = metabase_changes.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_change_tags.tag_id
 WHERE COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
@@ -207,6 +219,8 @@ SELECT
   COUNT(DISTINCT metabase_changes.chamado) AS total_mudancas
 FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
+LEFT JOIN bridge_change_tags ON bridge_change_tags.change_id = metabase_changes.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_change_tags.tag_id
 WHERE COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
@@ -241,6 +255,8 @@ SELECT
   metabase_changes.tags
 FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
+LEFT JOIN bridge_change_tags ON bridge_change_tags.change_id = metabase_changes.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_change_tags.tag_id
 WHERE COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
@@ -256,18 +272,20 @@ WHERE COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','T
   [[AND {{categoria_drill}}]]
 ORDER BY metabase_changes.data_criacao DESC, metabase_changes.chamado DESC;
 
--- 5) % de Mudança Executada com Sucesso (gráfico)
+-- 5) % de Mudança Executada Com sucesso (gráfico)
 SELECT
   DATE_FORMAT(metabase_changes.data_fechamento, '%Y-%m') AS mes,
   ROUND(
     100 *
-    SUM(CASE WHEN LOWER(COALESCE(metabase_changes.tipo_solucao, '')) LIKE '%sucesso%' THEN 1 ELSE 0 END)
+    COUNT(DISTINCT CASE WHEN LOWER(COALESCE(dim_tags.name, '')) LIKE '%sucesso%' THEN metabase_changes.chamado END)
     /
     NULLIF(COUNT(DISTINCT metabase_changes.chamado), 0),
     2
   ) AS percentual_mudanca_sucesso
 FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
+LEFT JOIN bridge_change_tags ON bridge_change_tags.change_id = metabase_changes.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_change_tags.tag_id
 WHERE metabase_changes.status_chamado = 'Fechado'
   AND metabase_changes.data_fechamento IS NOT NULL
   AND COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
@@ -285,7 +303,7 @@ WHERE metabase_changes.status_chamado = 'Fechado'
 GROUP BY DATE_FORMAT(metabase_changes.data_fechamento, '%Y-%m')
 ORDER BY DATE_FORMAT(metabase_changes.data_fechamento, '%Y-%m');
 
--- 5.1) Drill-down % de Mudança Executada com Sucesso (tabela)
+-- 5.1) Drill-down % de Mudança Executada Com sucesso (tabela)
 SELECT
   metabase_changes.chamado AS id,
   metabase_changes.titulo_chamado AS titulo,
@@ -301,13 +319,15 @@ SELECT
   metabase_changes.data_solucao,
   metabase_changes.data_fechamento,
   CASE
-    WHEN LOWER(COALESCE(metabase_changes.tipo_solucao, '')) LIKE '%sucesso%' THEN 'Sucesso'
+    WHEN LOWER(COALESCE(dim_tags.name, '')) LIKE '%sucesso%' THEN 'Sucesso'
     ELSE 'Outro'
   END AS resultado_execucao,
   metabase_changes.tipo_solucao,
   metabase_changes.tags
 FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
+LEFT JOIN bridge_change_tags ON bridge_change_tags.change_id = metabase_changes.chamado
+LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_change_tags.tag_id
 WHERE metabase_changes.status_chamado = 'Fechado'
   AND metabase_changes.data_fechamento IS NOT NULL
   AND COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')

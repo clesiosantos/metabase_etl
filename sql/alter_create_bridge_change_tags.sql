@@ -1,0 +1,2 @@
+-- Caso você prefira via ALTER (quando a tabela já existe, ignore este arquivo)
+-- Recomendado: usar create_bridge_change_tags.sql

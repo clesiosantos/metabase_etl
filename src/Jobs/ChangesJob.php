@@ -3,7 +3,7 @@ final class ChangesJob {
 
   public static function run(PDO $src, PDO $dst, string $mode, int $windowFullDays, int $batchSize): void {
     $entity = 'changes';
-    $tablesUpdated = ['metabase_changes'];
+    $tablesUpdated = ['metabase_changes', 'dim_tags', 'bridge_change_tags'];
 
     $runId = EtlRun::start($dst, $entity, $mode, $windowFullDays, $batchSize, $tablesUpdated);
 
@@ -19,6 +19,12 @@ final class ChangesJob {
       $ids = ChangesExtractor::fetchChangedIds($src, $lastUtc, $fullStartUtc);
       $idsSelected = count($ids);
       EtlRun::setSelected($dst, $runId, $idsSelected);
+
+      // TAGS: mantém dim_tags sincronizada e atualiza ponte só para as mudanças impactadas
+      TagsJobs::syncDimTags($src, $dst);
+      if ($idsSelected > 0) {
+        TagsJobs::refreshChangeLinks($src, $dst, $ids);
+      }
 
       $upsert = ChangesLoader::upsertStatement($dst);
 

@@ -38,4 +38,25 @@ final class TagsExtractor {
     $st->execute(array_values($ticketIds));
     return $st;
   }
+
+  public static function fetchChangeTagLinks(PDO $src, array $changeIds): PDOStatement {
+    if (!$changeIds) {
+      throw new RuntimeException("Lista de changeIds vazia em fetchChangeTagLinks()");
+    }
+
+    $placeholders = implode(',', array_fill(0, count($changeIds), '?'));
+
+    $sql = "
+      SELECT
+        items_id AS change_id,
+        plugin_tag_tags_id AS tag_id
+      FROM glpi_plugin_tag_tagitems
+      WHERE itemtype = 'Change'
+        AND items_id IN ($placeholders)
+    ";
+
+    $st = $src->prepare($sql);
+    $st->execute(array_values($changeIds));
+    return $st;
+  }
 }
