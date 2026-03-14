@@ -142,6 +142,7 @@ WHERE metabase_changes.status_chamado = 'Fechado'
   AND COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
+  [[AND DATE_FORMAT(metabase_changes.data_fechamento, '%Y-%m') = {{ano_mes}}]]
   [[AND {{cliente}}]]
   [[AND {{torre}}]]
   [[AND {{tecnico}}]]
