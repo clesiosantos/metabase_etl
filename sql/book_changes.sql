@@ -334,24 +334,21 @@ SELECT
     WHEN SUM(CASE WHEN dim_tags.name = 'Mudança::Fechado Sem Sucesso' THEN 1 ELSE 0 END) > 0 THEN 'Sem Sucesso'
     ELSE 'Sucesso'
   END AS resultado_execucao,
-  COALESCE(
-    NULLIF(
-      GROUP_CONCAT(
-        DISTINCT CASE
-          WHEN dim_tags.name IS NULL OR dim_tags.name = '' THEN NULL
-          WHEN dim_tags.name LIKE 'Mudança::Cancelad%' THEN NULL
-          ELSE dim_tags.name
-        END
-        ORDER BY CASE
-          WHEN dim_tags.name IS NULL OR dim_tags.name = '' THEN NULL
-          WHEN dim_tags.name LIKE 'Mudança::Cancelad%' THEN NULL
-          ELSE dim_tags.name
-        END
-        SEPARATOR ', '
-      ),
-      ''
+  NULLIF(
+    GROUP_CONCAT(
+      DISTINCT CASE
+        WHEN dim_tags.name IS NULL OR dim_tags.name = '' THEN NULL
+        WHEN dim_tags.name LIKE 'Mudança::Cancelad%' THEN NULL
+        ELSE dim_tags.name
+      END
+      ORDER BY CASE
+        WHEN dim_tags.name IS NULL OR dim_tags.name = '' THEN NULL
+        WHEN dim_tags.name LIKE 'Mudança::Cancelad%' THEN NULL
+        ELSE dim_tags.name
+      END
+      SEPARATOR ', '
     ),
-    'Sem etiqueta'
+    ''
   ) AS etiquetas
 FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
@@ -366,6 +363,14 @@ LEFT JOIN (
 WHERE metabase_changes.status_chamado = 'Fechado'
   AND metabase_changes.data_fechamento IS NOT NULL
   AND cancelado.change_id IS NULL
+  AND EXISTS (
+    SELECT 1
+    FROM bridge_change_tags b
+    JOIN dim_tags d ON d.tag_id = b.tag_id
+    WHERE b.change_id = metabase_changes.chamado
+      AND d.name IS NOT NULL AND d.name <> ''
+      AND d.name NOT LIKE 'Mudança::Cancelad%'
+  )
   AND COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
