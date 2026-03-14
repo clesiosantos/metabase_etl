@@ -26,7 +26,7 @@
 -- - metabase_changes não possui tipo_chamado (a aba já é Mudanças)
 -- - "Classificação Tecnica" foi mapeada para metabase_changes.tipo_atividade
 -- - Status de Mudanças (DW): Novo, Avaliação, Aprovação, Aceito, Pendente, Testando, Qualificação, Revisão, Aplicado, Cancelado, Recusado, Fechado
--- - % de sucesso: considera mudanças Fechadas que possuem alguma tag cujo nome contém "sucesso" (case-insensitive)
+-- - % de sucesso: considera mudanças Fechadas que NÃO possuem a tag "Mudança::Fechado Sem Sucesso"
 --
 -- Filtros adicionais de drill-down:
 -- [[AND {{classificacao_tecnica_drill}}]] -> metabase_changes.tipo_atividade
@@ -277,7 +277,12 @@ SELECT
   DATE_FORMAT(metabase_changes.data_fechamento, '%Y-%m') AS mes,
   ROUND(
     100 *
-    COUNT(DISTINCT CASE WHEN LOWER(COALESCE(dim_tags.name, '')) LIKE '%sucesso%' THEN metabase_changes.chamado END)
+    (
+      COUNT(DISTINCT metabase_changes.chamado)
+      - COUNT(DISTINCT CASE
+          WHEN dim_tags.name = 'Mudança::Fechado Sem Sucesso' THEN metabase_changes.chamado
+        END)
+    )
     /
     NULLIF(COUNT(DISTINCT metabase_changes.chamado), 0),
     2
@@ -319,8 +324,8 @@ SELECT
   metabase_changes.data_solucao,
   metabase_changes.data_fechamento,
   CASE
-    WHEN LOWER(COALESCE(dim_tags.name, '')) LIKE '%sucesso%' THEN 'Sucesso'
-    ELSE 'Outro'
+    WHEN dim_tags.name = 'Mudança::Fechado Sem Sucesso' THEN 'Sem Sucesso'
+    ELSE 'Sucesso'
   END AS resultado_execucao,
   metabase_changes.tipo_solucao,
   metabase_changes.tags
