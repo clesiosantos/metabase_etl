@@ -291,8 +291,15 @@ FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
 LEFT JOIN bridge_change_tags ON bridge_change_tags.change_id = metabase_changes.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_change_tags.tag_id
+LEFT JOIN (
+  SELECT DISTINCT b.change_id
+  FROM bridge_change_tags b
+  JOIN dim_tags d ON d.tag_id = b.tag_id
+  WHERE d.name LIKE 'Mudança::Cancelad%'
+) cancelado ON cancelado.change_id = metabase_changes.chamado
 WHERE metabase_changes.status_chamado = 'Fechado'
   AND metabase_changes.data_fechamento IS NOT NULL
+  AND cancelado.change_id IS NULL
   AND COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
@@ -327,13 +334,38 @@ SELECT
     WHEN SUM(CASE WHEN dim_tags.name = 'Mudança::Fechado Sem Sucesso' THEN 1 ELSE 0 END) > 0 THEN 'Sem Sucesso'
     ELSE 'Sucesso'
   END AS resultado_execucao,
-  GROUP_CONCAT(DISTINCT dim_tags.name ORDER BY dim_tags.name SEPARATOR ', ') AS etiquetas
+  COALESCE(
+    NULLIF(
+      GROUP_CONCAT(
+        DISTINCT CASE
+          WHEN dim_tags.name IS NULL OR dim_tags.name = '' THEN NULL
+          WHEN dim_tags.name LIKE 'Mudança::Cancelad%' THEN NULL
+          ELSE dim_tags.name
+        END
+        ORDER BY CASE
+          WHEN dim_tags.name IS NULL OR dim_tags.name = '' THEN NULL
+          WHEN dim_tags.name LIKE 'Mudança::Cancelad%' THEN NULL
+          ELSE dim_tags.name
+        END
+        SEPARATOR ', '
+      ),
+      ''
+    ),
+    'Sem etiqueta'
+  ) AS etiquetas
 FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
 LEFT JOIN bridge_change_tags ON bridge_change_tags.change_id = metabase_changes.chamado
 LEFT JOIN dim_tags ON dim_tags.tag_id = bridge_change_tags.tag_id
+LEFT JOIN (
+  SELECT DISTINCT b.change_id
+  FROM bridge_change_tags b
+  JOIN dim_tags d ON d.tag_id = b.tag_id
+  WHERE d.name LIKE 'Mudança::Cancelad%'
+) cancelado ON cancelado.change_id = metabase_changes.chamado
 WHERE metabase_changes.status_chamado = 'Fechado'
   AND metabase_changes.data_fechamento IS NOT NULL
+  AND cancelado.change_id IS NULL
   AND COALESCE(metabase_changes.tipo_solucao, '') NOT IN ('Ticket::Duplicado','Ticket::Cancelado')
   [[AND {{periodo_abertura}}]]
   [[AND {{periodo_fechamento}}]]
