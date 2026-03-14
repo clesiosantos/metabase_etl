@@ -324,11 +324,10 @@ SELECT
   metabase_changes.data_solucao,
   metabase_changes.data_fechamento,
   CASE
-    WHEN dim_tags.name = 'Mudança::Fechado Sem Sucesso' THEN 'Sem Sucesso'
+    WHEN SUM(CASE WHEN dim_tags.name = 'Mudança::Fechado Sem Sucesso' THEN 1 ELSE 0 END) > 0 THEN 'Sem Sucesso'
     ELSE 'Sucesso'
   END AS resultado_execucao,
-  metabase_changes.tipo_solucao,
-  metabase_changes.tags
+  GROUP_CONCAT(DISTINCT dim_tags.name ORDER BY dim_tags.name SEPARATOR ', ') AS etiquetas
 FROM metabase_changes
 JOIN dim_calendario ON dim_calendario.data = metabase_changes.data_id
 LEFT JOIN bridge_change_tags ON bridge_change_tags.change_id = metabase_changes.chamado
@@ -347,4 +346,18 @@ WHERE metabase_changes.status_chamado = 'Fechado'
   [[AND {{tipo_solucao}}]]
   [[AND {{prioridade}}]]
   [[AND {{etiqueta}}]]
+GROUP BY
+  metabase_changes.chamado,
+  metabase_changes.titulo_chamado,
+  metabase_changes.status_chamado,
+  metabase_changes.prioridade,
+  metabase_changes.categoria,
+  metabase_changes.tipo_atividade,
+  metabase_changes.entidade_cliente,
+  metabase_changes.grupo_solucionador,
+  metabase_changes.agente_solucionador,
+  metabase_changes.nome_solicitante,
+  metabase_changes.data_criacao,
+  metabase_changes.data_solucao,
+  metabase_changes.data_fechamento
 ORDER BY metabase_changes.data_fechamento DESC, metabase_changes.chamado DESC;
