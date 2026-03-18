@@ -40,6 +40,8 @@ final class TimesheetJob {
   private static function bindRow(array $row): array {
     return [
       ':id_tarefa' => $row['id_tarefa'],
+      ':id_tarefa_original' => $row['id_tarefa_original'],
+      ':id_tarefa_formatado' => $row['id_tarefa_formatado'],
       ':tipo_ticket' => $row['tipo_ticket'],
       ':id_pai' => $row['id_pai'],
       ':data_abertura_pai' => $row['data_abertura_pai'],

@@ -31,6 +31,8 @@ final class TimesheetExtractor {
       $queries[] = "
         SELECT
           CONCAT('$type', '_', tk.id) as id_tarefa,
+          tk.id as id_tarefa_original,
+          CONCAT(p.id, '-', tk.id) as id_tarefa_formatado,
           '$type' as tipo_ticket,
           p.id as id_pai,
           p.date as data_abertura_pai,
@@ -38,7 +40,7 @@ final class TimesheetExtractor {
           e.name as cliente,
           COALESCE(g.name, 'Sem Grupo') as grupo_solucionador,
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) as tecnico,
-          tk.date as data_lancamento,
+          tk.begin as data_lancamento,
           (tk.actiontime / 3600) as horas,
           COALESCE(tc.name, 'Comercial') as tipo_hora,
           UTC_TIMESTAMP() as data_carga

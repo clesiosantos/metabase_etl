@@ -5,13 +5,17 @@ final class TimesheetLoader {
   public static function upsertStatement(PDO $dst): PDOStatement {
     $sql = "
       INSERT INTO metabase_timesheet (
-        id_tarefa, tipo_ticket, id_pai, data_abertura_pai, data_fechamento_pai,
+        id_tarefa, id_tarefa_original, id_tarefa_formatado,
+        tipo_ticket, id_pai, data_abertura_pai, data_fechamento_pai,
         cliente, grupo_solucionador, tecnico, data_lancamento, horas, tipo_hora, data_carga
       ) VALUES (
-        :id_tarefa, :tipo_ticket, :id_pai, :data_abertura_pai, :data_fechamento_pai,
+        :id_tarefa, :id_tarefa_original, :id_tarefa_formatado,
+        :tipo_ticket, :id_pai, :data_abertura_pai, :data_fechamento_pai,
         :cliente, :grupo_solucionador, :tecnico, :data_lancamento, :horas, :tipo_hora, :data_carga
       )
       ON DUPLICATE KEY UPDATE
+        id_tarefa_original=VALUES(id_tarefa_original),
+        id_tarefa_formatado=VALUES(id_tarefa_formatado),
         tipo_ticket=VALUES(tipo_ticket),
         id_pai=VALUES(id_pai),
         data_abertura_pai=VALUES(data_abertura_pai),
