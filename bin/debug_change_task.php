@@ -18,33 +18,22 @@ try {
     $src = Db::pdo($CFG['source']);
     $changeId = 786;
 
-    echo "--- Buscando Tarefas associadas à Change #$changeId ---\n";
+    echo "--- Debug de Tarefas (Change #$changeId) ---\n";
+    echo "Comparativo de Dados Brutos vs Lógica do ETL\n\n";
 
     $sql = "
         SELECT 
             tk.id,
-            tk.changes_id,
-            tk.date AS data_criacao,
-            tk.begin AS data_inicio,
+            tk.date AS raw_date,
+            tk.begin AS raw_begin,
             
-            -- Lógica robusta: se YEAR for 0 ou nulo, usa a data de criação (tk.date)
+            -- Mesma lógica aplicada no TimesheetExtractor
             CASE 
-              WHEN tk.begin IS NULL OR YEAR(tk.begin) = 0
-              THEN tk.date 
-              ELSE tk.begin 
-            END AS data_lancamento_calculada,
-
-            tk.end AS data_fim,
-            tk.actiontime AS tempo_segundos,
-            (tk.actiontime / 3600) AS horas,
-            tk.users_id,
-            COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) AS tecnico,
-            tk.taskcategories_id,
-            tc.name AS categoria_tarefa,
-            tk.content AS conteudo
+              WHEN tk.begin IS NOT NULL AND YEAR(tk.begin) > 0
+              THEN tk.begin 
+              ELSE tk.date 
+            END AS calculated_data_lancamento
         FROM glpi_changetasks tk
-        LEFT JOIN glpi_users u ON u.id = tk.users_id
-        LEFT JOIN glpi_taskcategories tc ON tc.id = tk.taskcategories_id
         WHERE tk.changes_id = ?
     ";
 
@@ -53,21 +42,18 @@ try {
     $tasks = $st->fetchAll(PDO::FETCH_ASSOC);
 
     if (empty($tasks)) {
-        echo "Nenhuma tarefa encontrada para a Change #$changeId na tabela glpi_changetasks.\n";
+        echo "Nenhuma tarefa encontrada.\n";
         exit;
     }
 
-    echo "Total de tarefas encontradas: " . count($tasks) . "\n\n";
-
     foreach ($tasks as $i => $task) {
-        echo "--- Tarefa [" . ($i + 1) . "] ID: {$task['id']} ---\n";
-        echo "Data Criação: {$task['data_criacao']}\n";
-        echo "Data Início (GLPI): " . ($task['data_inicio'] ?: 'VAZIO') . "\n";
-        echo ">>> DATA LANÇAMENTO (Calculada): {$task['data_lancamento_calculada']}\n";
-        echo "Horas: " . round((float)$task['horas'], 4) . "\n";
-        echo "Técnico: {$task['tecnico']}\n";
-        echo "Categoria: {$task['categoria_tarefa']}\n";
-        echo "--------------------------------------\n\n";
+        echo "[Tarefa ID: {$task['id']}]\n";
+        echo "  - ANTES (No GLPI):\n";
+        echo "    * date:  " . ($task['raw_date'] ?: 'null') . "\n";
+        echo "    * begin: " . ($task['raw_begin'] ?: 'null') . "\n";
+        echo "  - DEPOIS (Lógica ETL):\n";
+        echo "    * data_lancamento: " . ($task['calculated_data_lancamento'] ?: '!! VAZIO !!') . "\n";
+        echo "--------------------------------------\n";
     }
 
 } catch (Throwable $e) {
