@@ -41,6 +41,7 @@ final class TimesheetExtractor {
           COALESCE(g.name, 'Sem Grupo') as grupo_solucionador,
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) as tecnico,
           tk.begin as data_lancamento,
+          tk.date as data_criacao_tarefa,
           (tk.actiontime / 3600) as horas,
           COALESCE(tc.name, 'Comercial') as tipo_hora,
           UTC_TIMESTAMP() as data_carga

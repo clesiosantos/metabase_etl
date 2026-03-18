@@ -50,6 +50,7 @@ final class TimesheetJob {
       ':grupo_solucionador' => $row['grupo_solucionador'],
       ':tecnico' => $row['tecnico'],
       ':data_lancamento' => $row['data_lancamento'],
+      ':data_criacao_tarefa' => $row['data_criacao_tarefa'],
       ':horas' => $row['horas'],
       ':tipo_hora' => $row['tipo_hora'],
       ':data_carga' => $row['data_carga'] ?? gmdate('Y-m-d H:i:s'),
