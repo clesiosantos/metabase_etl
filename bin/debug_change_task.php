@@ -26,6 +26,14 @@ try {
             tk.changes_id,
             tk.date AS data_criacao,
             tk.begin AS data_inicio,
+            
+            -- Lógica de fallback idêntica ao TimesheetExtractor
+            CASE 
+              WHEN tk.begin IS NULL OR tk.begin = '' OR tk.begin = '0000-00-00 00:00:00' 
+              THEN tk.date 
+              ELSE tk.begin 
+            END AS data_lancamento_calculada,
+
             tk.end AS data_fim,
             tk.actiontime AS tempo_segundos,
             (tk.actiontime / 3600) AS horas,
@@ -53,8 +61,13 @@ try {
 
     foreach ($tasks as $i => $task) {
         echo "--- Tarefa [" . ($i + 1) . "] ID: {$task['id']} ---\n";
-        print_r($task);
-        echo "\n";
+        echo "Data Criação: {$task['data_criacao']}\n";
+        echo "Data Início (GLPI): " . ($task['data_inicio'] ?: 'VAZIO') . "\n";
+        echo ">>> DATA LANÇAMENTO (Calculada): {$task['data_lancamento_calculada']}\n";
+        echo "Horas: " . round((float)$task['horas'], 4) . "\n";
+        echo "Técnico: {$task['tecnico']}\n";
+        echo "Categoria: {$task['categoria_tarefa']}\n";
+        echo "--------------------------------------\n\n";
     }
 
 } catch (Throwable $e) {
