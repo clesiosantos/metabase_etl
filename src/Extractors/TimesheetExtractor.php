@@ -40,8 +40,11 @@ final class TimesheetExtractor {
           e.name as cliente,
           COALESCE(g.name, 'Sem Grupo') as grupo_solucionador,
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) as tecnico,
-          COALESCE(tk.begin, tk.date) as data_lancamento,
+          
+          -- Se begin for nulo ou vazio, usa a data de criação da tarefa
+          COALESCE(NULLIF(tk.begin, ''), tk.date) as data_lancamento,
           tk.date as data_criacao_tarefa,
+          
           (tk.actiontime / 3600) as horas,
           COALESCE(tc.name, 'Comercial') as tipo_hora,
           UTC_TIMESTAMP() as data_carga
@@ -92,7 +95,7 @@ final class TimesheetExtractor {
       SELECT 
           CONCAT('FORM_', fa.id) AS id_tarefa,
           fa.id AS id_tarefa_original,
-          CONCAT(tk.id, '-', COALESCE(tt.id, '')) AS id_tarefa_formatado,
+          CONCAT(tk.id, '-') AS id_tarefa_formatado,
           'Ticket' AS tipo_ticket,
           tk.id AS id_pai,
           tk.date AS data_abertura_pai,
@@ -103,9 +106,9 @@ final class TimesheetExtractor {
           
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) AS tecnico,
           
-          -- Lógica de Lançamento: Se a pergunta 1651 (Início) estiver vazia, usa a data de criação do formulário
+          -- Lógica de Lançamento: Se a resposta da pergunta 1651 for nula ou vazia, usa a data de criação do formulário
           COALESCE(
-            MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1651 THEN ans.answer END),
+            NULLIF(MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1651 THEN ans.answer END), ''),
             fa.date_creation
           ) AS data_lancamento,
           
@@ -128,8 +131,6 @@ final class TimesheetExtractor {
       LEFT JOIN glpi_entities ent ON (ans.plugin_formcreator_questions_id = 1653 AND ent.id = ans.answer)
       LEFT JOIN glpi_groups grp ON (ans.plugin_formcreator_questions_id = 1654 AND grp.id = ans.answer)
       
-      LEFT JOIN glpi_tickettasks tt ON tt.tickets_id = tk.id AND tt.date_mod >= fa.date_creation
-
       WHERE fa.id IN ($placeholders)
       GROUP BY fa.id
     ";
