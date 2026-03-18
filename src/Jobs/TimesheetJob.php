@@ -9,16 +9,37 @@ final class TimesheetJob {
     try {
       $lastUtc = ($mode === 'full') ? '1970-01-01 00:00:00' : (Checkpoint::get($dst, $entity) ?? '1970-01-01 00:00:00');
       
+      // 1. Processar Tarefas Padrão (Tickets, Changes, Problems)
       $tasks = TimesheetExtractor::fetchChangedTaskIds($src, $lastUtc);
-      $total = count($tasks);
-      EtlRun::setSelected($dst, $runId, $total);
+      $totalTasks = count($tasks);
+      
+      // 2. Processar Formcreator ID 142
+      $formIds = TimesheetExtractor::fetchChangedForm142Ids($src, $lastUtc);
+      $totalForms = count($formIds);
 
-      if ($total > 0) {
-        $upsert = TimesheetLoader::upsertStatement($dst);
+      EtlRun::setSelected($dst, $runId, $totalTasks + $totalForms);
+
+      $upsert = TimesheetLoader::upsertStatement($dst);
+
+      // Executar carga de Tarefas Padrão
+      if ($totalTasks > 0) {
         $chunks = array_chunk($tasks, $batchSize);
-
         foreach ($chunks as $chunk) {
           $st = TimesheetExtractor::fetchTaskDetails($src, $chunk);
+          $dst->beginTransaction();
+          while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $upsert->execute(self::bindRow($row));
+            EtlRun::addUpserted($dst, $runId, 1);
+          }
+          $dst->commit();
+        }
+      }
+
+      // Executar carga de Formulários 142
+      if ($totalForms > 0) {
+        $chunks = array_chunk($formIds, $batchSize);
+        foreach ($chunks as $chunk) {
+          $st = TimesheetExtractor::fetchForm142Details($src, $chunk);
           $dst->beginTransaction();
           while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
             $upsert->execute(self::bindRow($row));
