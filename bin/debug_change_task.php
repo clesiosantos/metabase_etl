@@ -1,6 +1,6 @@
 <?php
 /**
- * Script de Debug: Análise de Tarefas da Change 786
+ * Script de Debug: Comparativo de Data de Lançamento
  * Data: 26/02/2026
  */
 
@@ -16,43 +16,62 @@ require_once __DIR__ . '/../src/Db.php';
 
 try {
     $src = Db::pdo($CFG['source']);
+    $dst = Db::pdo($CFG['target']);
     $changeId = 786;
 
-    echo "--- Debug de Tarefas (Change #$changeId) ---\n";
-    echo "Comparativo de Dados Brutos vs Lógica do ETL\n\n";
+    echo "--- Debug Comparativo (Change #$changeId) ---\n\n";
 
-    $sql = "
+    // 1. Busca como está no DW (Destino)
+    $stDw = $dst->prepare("
+        SELECT id_tarefa, data_lancamento, data_criacao_tarefa 
+        FROM metabase_timesheet 
+        WHERE tipo_ticket = 'Change' AND id_pai = ?
+    ");
+    $stDw->execute([$changeId]);
+    $dwTasks = [];
+    while ($r = $stDw->fetch(PDO::FETCH_ASSOC)) {
+        $idOriginal = explode('_', $r['id_tarefa'])[1];
+        $dwTasks[$idOriginal] = $r;
+    }
+
+    // 2. Busca na Origem (GLPI) e aplica a nova lógica
+    $sqlSrc = "
         SELECT 
             tk.id,
-            tk.date AS raw_date,
-            tk.begin AS raw_begin,
-            
-            -- Mesma lógica aplicada no TimesheetExtractor
+            tk.date AS glpi_date,
+            tk.begin AS glpi_begin,
             CASE 
               WHEN tk.begin IS NOT NULL AND YEAR(tk.begin) > 0
               THEN tk.begin 
               ELSE tk.date 
-            END AS calculated_data_lancamento
+            END AS logic_result
         FROM glpi_changetasks tk
         WHERE tk.changes_id = ?
     ";
 
-    $st = $src->prepare($sql);
-    $st->execute([$changeId]);
-    $tasks = $st->fetchAll(PDO::FETCH_ASSOC);
+    $stSrc = $src->prepare($sqlSrc);
+    $stSrc->execute([$changeId]);
+    $glpiTasks = $stSrc->fetchAll(PDO::FETCH_ASSOC);
 
-    if (empty($tasks)) {
-        echo "Nenhuma tarefa encontrada.\n";
+    if (empty($glpiTasks)) {
+        echo "Nenhuma tarefa encontrada no GLPI para a Change #$changeId.\n";
         exit;
     }
 
-    foreach ($tasks as $i => $task) {
-        echo "[Tarefa ID: {$task['id']}]\n";
-        echo "  - ANTES (No GLPI):\n";
-        echo "    * date:  " . ($task['raw_date'] ?: 'null') . "\n";
-        echo "    * begin: " . ($task['raw_begin'] ?: 'null') . "\n";
-        echo "  - DEPOIS (Lógica ETL):\n";
-        echo "    * data_lancamento: " . ($task['calculated_data_lancamento'] ?: '!! VAZIO !!') . "\n";
+    foreach ($glpiTasks as $task) {
+        $id = (string)$task['id'];
+        $dwVal = $dwTasks[$id]['data_lancamento'] ?? '!! NÃO ENCONTRADO NO DW !!';
+
+        echo "[Tarefa ID: $id]\n";
+        echo "  - NO BANCO DW (ANTES):      " . ($dwVal ?: '!! ESTÁ EM BRANCO !!') . "\n";
+        echo "  - DADOS NO GLPI (BRUTOS):   date={$task['glpi_date']} | begin=" . ($task['glpi_begin'] ?: 'null') . "\n";
+        echo "  - NOVA LÓGICA ETL (DEPOIS): {$task['logic_result']}\n";
+        
+        if ($dwVal === $task['logic_result']) {
+            echo "  > STATUS: Já está sincronizado corretamente.\n";
+        } else {
+            echo "  > STATUS: PRECISA DE ATUALIZAÇÃO (Rode o ETL com --full).\n";
+        }
         echo "--------------------------------------\n";
     }
 
