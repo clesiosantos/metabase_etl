@@ -31,7 +31,10 @@ final class ChangesExtractor {
 
         c.date AS data_criacao,
         c.solvedate AS data_solucao,
-        c.closedate AS data_fechamento,
+        
+        -- Fallback: se não houver data de fechamento, usa solução; se não houver solução, usa criação
+        COALESCE(c.closedate, c.solvedate, c.date) AS data_fechamento,
+        
         c.date_mod AS data_ultima_atualizacao,
         DATE(c.date) AS data_id,
 
