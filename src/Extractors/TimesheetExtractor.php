@@ -40,7 +40,7 @@ final class TimesheetExtractor {
           e.name as cliente,
           COALESCE(g.name, 'Sem Grupo') as grupo_solucionador,
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) as tecnico,
-          tk.begin as data_lancamento,
+          COALESCE(tk.begin, tk.date) as data_lancamento,
           tk.date as data_criacao_tarefa,
           (tk.actiontime / 3600) as horas,
           COALESCE(tc.name, 'Comercial') as tipo_hora,
@@ -72,9 +72,6 @@ final class TimesheetExtractor {
     return $st;
   }
 
-  /**
-   * Busca IDs de respostas do Formcreator 142 alteradas
-   */
   public static function fetchChangedForm142Ids(PDO $src, string $lastUtc): array {
     $sql = "
       SELECT fa.id
@@ -88,9 +85,6 @@ final class TimesheetExtractor {
     return array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
   }
 
-  /**
-   * Extrai detalhes pivotados do Formcreator 142
-   */
   public static function fetchForm142Details(PDO $src, array $ids): PDOStatement {
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
@@ -104,14 +98,18 @@ final class TimesheetExtractor {
           tk.date AS data_abertura_pai,
           tk.closedate AS data_fechamento_pai,
           
-          -- Pivoteamento das perguntas específicas
           MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1653 THEN ent.name END) AS cliente,
           MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1654 THEN grp.name END) AS grupo_solucionador,
           
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) AS tecnico,
           
-          MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1651 THEN ans.answer END) AS data_lancamento,
-          fa.date_mod AS data_criacao_tarefa,
+          -- Lógica de Lançamento: Se a pergunta 1651 (Início) estiver vazia, usa a data de criação do formulário
+          COALESCE(
+            MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1651 THEN ans.answer END),
+            fa.date_creation
+          ) AS data_lancamento,
+          
+          fa.date_creation AS data_criacao_tarefa,
 
           ROUND(TIMESTAMPDIFF(SECOND, 
               MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1651 THEN ans.answer END), 
@@ -127,11 +125,9 @@ final class TimesheetExtractor {
       JOIN glpi_users u ON u.id = fa.users_id
       JOIN glpi_plugin_formcreator_answers ans ON ans.plugin_formcreator_formanswers_id = fa.id
       
-      -- Joins auxiliares para pegar nomes de entidades/grupos das respostas
       LEFT JOIN glpi_entities ent ON (ans.plugin_formcreator_questions_id = 1653 AND ent.id = ans.answer)
       LEFT JOIN glpi_groups grp ON (ans.plugin_formcreator_questions_id = 1654 AND grp.id = ans.answer)
       
-      -- Tenta encontrar uma tarefa real vinculada (opcional)
       LEFT JOIN glpi_tickettasks tt ON tt.tickets_id = tk.id AND tt.date_mod >= fa.date_creation
 
       WHERE fa.id IN ($placeholders)
