@@ -41,11 +41,12 @@ final class TimesheetExtractor {
           COALESCE(g.name, 'Sem Grupo') as grupo_solucionador,
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) as tecnico,
           
-          -- Lógica robusta: se begin for nulo, vazio ou zerado, usa a data de criação (tk.date)
-          COALESCE(
-            NULLIF(NULLIF(tk.begin, ''), '0000-00-00 00:00:00'), 
-            tk.date
-          ) as data_lancamento,
+          -- CASE explícito para garantir que data_lancamento nunca seja nulo/vazio
+          CASE 
+            WHEN tk.begin IS NULL OR tk.begin = '' OR tk.begin = '0000-00-00 00:00:00' 
+            THEN tk.date 
+            ELSE tk.begin 
+          END as data_lancamento,
           
           tk.date as data_criacao_tarefa,
           
@@ -110,7 +111,7 @@ final class TimesheetExtractor {
           
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) AS tecnico,
           
-          -- Lógica para Formulário: se a resposta de início (1651) for inválida, usa criação (fa.date_creation)
+          -- Garante fallback para a criação do formulário se a resposta de data for inválida
           COALESCE(
             NULLIF(NULLIF(MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1651 THEN ans.answer END), ''), '0000-00-00 00:00:00'),
             fa.date_creation
