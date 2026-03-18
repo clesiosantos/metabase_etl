@@ -41,7 +41,7 @@ final class TimesheetExtractor {
           COALESCE(g.name, 'Sem Grupo') as grupo_solucionador,
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) as tecnico,
           
-          -- CASE explícito para garantir que data_lancamento nunca seja nulo/vazio
+          -- Fallback: Se a data de início (begin) estiver vazia ou inválida, usa a data de criação (date)
           CASE 
             WHEN tk.begin IS NULL OR tk.begin = '' OR tk.begin = '0000-00-00 00:00:00' 
             THEN tk.date 
