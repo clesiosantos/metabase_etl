@@ -1,7 +1,7 @@
 <?php
 /**
  * Data: 26/02/2026
- * Versão: 1.0.4
+ * Versão: 1.0.5
  * Autor: 3P Systems — www.3psystems.com.br
  */
 
@@ -91,7 +91,7 @@ foreach ($entities as $ent) {
                 ProblemsJob::run($src, $dst, $mode, $CFG['etl']['window_full_days'] ?? 15, $CFG['etl']['batch_size'] ?? 1000);
                 break;
             case 'timesheet':
-                TimesheetJob::run($src, $dst, $mode, $CFG['etl']['batch_size'] ?? 1000);
+                TimesheetJob::run($src, $dst, $log, $mode, $CFG['etl']['batch_size'] ?? 1000);
                 break;
             default:
                 if ($entity !== 'all') {
@@ -102,7 +102,6 @@ foreach ($entities as $ent) {
         $log->info("Entidade $ent processada com sucesso.");
     } catch (Throwable $e) {
         $log->error("Erro ao processar entidade $ent: " . $e->getMessage());
-        // Se estiver rodando 'all', continuamos para a próxima entidade apesar do erro
         if ($entity !== 'all') exit(1);
     }
 }
