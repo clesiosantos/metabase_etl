@@ -41,9 +41,9 @@ final class TimesheetExtractor {
           COALESCE(g.name, 'Sem Grupo') as grupo_solucionador,
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) as tecnico,
           
-          -- Fallback: Removida comparação com '' para evitar erro 1525 do MySQL
+          -- Fallback: Usa YEAR() = 0 para detectar datas zeradas com segurança no MySQL strict mode
           CASE 
-            WHEN tk.begin IS NULL OR tk.begin = '0000-00-00 00:00:00' 
+            WHEN tk.begin IS NULL OR YEAR(tk.begin) = 0
             THEN tk.date 
             ELSE tk.begin 
           END as data_lancamento,
@@ -113,7 +113,7 @@ final class TimesheetExtractor {
           
           -- Garante fallback para a criação do formulário se a resposta de data for inválida
           COALESCE(
-            NULLIF(NULLIF(MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1651 THEN ans.answer END), ''), '0000-00-00 00:00:00'),
+            NULLIF(MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1651 THEN ans.answer END), '0000-00-00 00:00:00'),
             fa.date_creation
           ) AS data_lancamento,
           

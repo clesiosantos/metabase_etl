@@ -27,9 +27,9 @@ try {
             tk.date AS data_criacao,
             tk.begin AS data_inicio,
             
-            -- Fallback: Removida comparação com '' para evitar erro 1525 do MySQL
+            -- Lógica robusta: se YEAR for 0 ou nulo, usa a data de criação
             CASE 
-              WHEN tk.begin IS NULL OR tk.begin = '0000-00-00 00:00:00' 
+              WHEN tk.begin IS NULL OR YEAR(tk.begin) = 0
               THEN tk.date 
               ELSE tk.begin 
             END AS data_lancamento_calculada,
