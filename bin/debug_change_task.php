@@ -27,7 +27,7 @@ try {
             tk.date AS data_criacao,
             tk.begin AS data_inicio,
             
-            -- Lógica robusta: se YEAR for 0 ou nulo, usa a data de criação
+            -- Lógica robusta: se YEAR for 0 ou nulo, usa a data de criação (tk.date)
             CASE 
               WHEN tk.begin IS NULL OR YEAR(tk.begin) = 0
               THEN tk.date 
