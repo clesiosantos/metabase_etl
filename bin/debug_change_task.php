@@ -27,9 +27,9 @@ try {
             tk.date AS data_criacao,
             tk.begin AS data_inicio,
             
-            -- Lógica de fallback idêntica ao TimesheetExtractor
+            -- Fallback: Removida comparação com '' para evitar erro 1525 do MySQL
             CASE 
-              WHEN tk.begin IS NULL OR tk.begin = '' OR tk.begin = '0000-00-00 00:00:00' 
+              WHEN tk.begin IS NULL OR tk.begin = '0000-00-00 00:00:00' 
               THEN tk.date 
               ELSE tk.begin 
             END AS data_lancamento_calculada,
