@@ -22,6 +22,7 @@ O ETL e o DW operam em **UTC**.
 - **Regras de Qualidade:** 
     - Filtra apenas formulários que possuem ticket pai vinculado.
     - Ignora automaticamente qualquer lançamento com tempo igual a zero.
+    - **Prevenção de Duplicidade:** Se um ticket possui formulário vinculado, as horas manuais do ticket são ignoradas, priorizando os dados do Formcreator.
 
 ### Mudanças (Changes)
 - **Abertas:** Status NOT IN ('Aplicado', 'Cancelado', 'Recusado', 'Fechado').
