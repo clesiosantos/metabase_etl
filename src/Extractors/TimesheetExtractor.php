@@ -124,8 +124,7 @@ final class TimesheetExtractor {
           UTC_TIMESTAMP() AS data_carga
 
       FROM glpi_plugin_formcreator_formanswers fa
-      JOIN glpi_items_plugin_formcreator_formanswers fai ON fai.plugin_formcreator_formanswers_id = fa.id
-      JOIN glpi_tickets tk ON tk.id = fai.items_id AND fai.itemtype = 'Ticket'
+      JOIN glpi_tickets tk ON tk.id = fa.items_id AND fa.itemtype = 'Ticket'
       JOIN glpi_users u ON u.id = fa.users_id
       JOIN glpi_plugin_formcreator_answers ans ON ans.plugin_formcreator_formanswers_id = fa.id
       
