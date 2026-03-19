@@ -33,9 +33,16 @@ final class TimesheetExtractor {
       $fk = strtolower($type) . 's_id';
       $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
-      // Regra de Negócio: Se for Ticket, ignora se houver vínculo com Formcreator para evitar duplicidade
+      // Regra de Negócio: Se for Ticket, ignora apenas se for do Formulário 142 (que tem carga própria via fetchForm142Details)
+      // Isso evita duplicidade no Form 142, mas permite carregar tarefas de outros formulários (ex: Ticket 43507).
       $filterForms = ($type === 'Ticket') 
-        ? "AND p.id NOT IN (SELECT tickets_id FROM glpi_items_tickets WHERE itemtype = 'PluginFormcreatorFormAnswer')" 
+        ? "AND p.id NOT IN (
+              SELECT it.tickets_id 
+              FROM glpi_items_tickets it
+              JOIN glpi_plugin_formcreator_formanswers fa ON fa.id = it.items_id
+              WHERE it.itemtype = 'PluginFormcreatorFormAnswer'
+                AND fa.plugin_formcreator_forms_id = 142
+          )" 
         : "";
 
       $queries[] = "
