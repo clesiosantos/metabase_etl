@@ -1,47 +1,26 @@
-# ETL GLPI → Data Warehouse (MySQL) → Metabase
+# ETL GLPI → Data Warehouse (MySQL)
 
-Este projeto realiza a extração, transformação e carga (ETL) de dados do GLPI para um Data Warehouse (DW) em MySQL, otimizado para consumo via Metabase.
+Sistema de integração de dados para Dashboards estratégicos no Metabase.
 
-## 🚀 Arquitetura
-O sistema segue o padrão modular:
-- **Extractors:** Consultas complexas no banco de origem (GLPI).
-- **Transformers:** Limpeza, normalização e criação de faixas (Aging, Sem Atualização).
-- **Loaders:** Operações de `UPSERT` (idempotência) no banco de destino.
-- **Jobs:** Orquestração do fluxo de uma entidade específica.
-- **Checkpoint:** Controle de carga incremental baseado em data de modificação.
+## 📂 Estrutura de Documentação
+- `docs/BOOK_METABASE.md`: Guia mestre de configuração do Dashboard.
+- `docs/TIMESHEET_METABASE.md`: Detalhes específicos da unificação de horas.
+- `docs/SLA_METABASE.md`: Regras de cálculo de TTO e TTR.
+- `AI_RULES.md`: Regras de desenvolvimento para manutenção do código.
 
-## 📂 Entidades Processadas
-- **Tickets:** Incidentes e Requisições com cálculo de SLA (TTO/TTR).
-- **Changes:** Gestão de Mudanças com campos customizados de ambiente e classificação.
-- **Problems:** Gestão de Problemas com análise de causa raiz.
-- **Timesheet:** Unificação de lançamentos de tarefas (`Ticket`, `Change`, `Problem`) e formulários de apontamento de horas (`Form 142`).
-- **Tags:** Sincronização de dimensões e pontes (N:N) para todas as entidades.
+## 🛠️ Ferramentas de Suporte
+- `sql/filter_agentes.sql`: SQL pronto para criar o filtro de agentes no Metabase (resolve conflitos de collation).
+- `bin/debug_change.php`: Script CLI para validar dados de uma mudança específica.
+- `bin/debug_change_task.php`: Script CLI para validar sincronização de datas de lançamento.
 
-## 🛠️ Comandos de Execução
-Todos os comandos devem ser executados via CLI a partir da raiz do projeto:
-
+## 🚀 Como Executar
 ```bash
-# Processar tudo (Incremental)
+# Sincronização Incremental (Diária/Horária)
 php bin/etl.php all
 
-# Processar tudo (Carga Total)
+# Recarga Total (Correção de Histórico)
 php bin/etl.php all --full
-
-# Processar entidade específica
-php bin/etl.php tickets
-php bin/etl.php changes
-php bin/etl.php problems
-php bin/etl.php timesheet
 ```
 
-## 📊 Observabilidade
-O sistema registra toda execução no DW:
-- `etl_run`: Status, volumetria (IDs selecionados vs Upserted) e validações.
-- `etl_error`: Logs detalhados de falhas com contexto JSON.
-- `etl_checkpoint`: Último timestamp de sucesso por entidade.
-- `logs/etl.log`: Log detalhado em arquivo para auditoria do sistema.
-
-## 📋 Pré-requisitos
-- PHP 8.x (CLI) com extensões `pdo_mysql`.
-- MySQL 8.0+ em ambos os bancos.
-- Timezone configurado como **UTC** no servidor e bancos de dados.
+---
+*Desenvolvido por 3P Systems — www.3psystems.com.br*
