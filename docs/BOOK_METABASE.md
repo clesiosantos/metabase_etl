@@ -7,6 +7,7 @@ Para garantir que os cards funcionem em conjunto, utilize os mapeamentos:
 - `{{periodo_abertura}}` → `dim_calendario.data`
 - `{{cliente}}` → `entidade_cliente`
 - `{{torre}}` → `grupo_solucao` (ou `grupo_solucionador`)
+- `{{agente}}` → `agente_solucionador` (Tabelas de Tickets/Changes/Problems) ou `tecnico` (Tabela Timesheet)
 - `{{status}}` → `status_chamado`
 
 ## 🕒 Configuração de Infraestrutura
