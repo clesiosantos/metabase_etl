@@ -145,7 +145,7 @@ final class ChangesExtractor {
 
       LEFT JOIN (
         SELECT changes_id, MIN(groups_id) AS groups_id
-        FROM glpi_changes_groups
+        FROM glpi_groups_changes
         WHERE type = 2
         GROUP BY changes_id
       ) cg1 ON cg1.changes_id = c.id
@@ -153,7 +153,7 @@ final class ChangesExtractor {
 
       LEFT JOIN (
         SELECT changes_id, MIN(users_id) AS users_id
-        FROM glpi_changes_users
+        FROM glpi_groups_changes
         WHERE type = 2
         GROUP BY changes_id
       ) cu1 ON cu1.changes_id = c.id

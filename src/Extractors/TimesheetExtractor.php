@@ -25,7 +25,9 @@ final class TimesheetExtractor {
 
       $table = 'glpi_' . strtolower($type) . 'tasks';
       $parentTable = 'glpi_' . strtolower($type) . 's';
-      $groupTable = 'glpi_' . strtolower($type) . 's_groups'; // Padrão GLPI para Changes/Problems
+      
+      // Padrão GLPI para relacionamento de grupos
+      $groupTable = 'glpi_groups_' . strtolower($type) . 's';
       if ($type === 'Ticket') $groupTable = 'glpi_groups_tickets';
       
       $fk = strtolower($type) . 's_id';
@@ -80,11 +82,12 @@ final class TimesheetExtractor {
   }
 
   public static function fetchChangedForm142Ids(PDO $src, string $lastUtc): array {
+    // Formcreator utiliza date_update em vez de date_mod
     $sql = "
       SELECT fa.id
       FROM glpi_plugin_formcreator_formanswers fa
       WHERE fa.plugin_formcreator_forms_id = 142 
-        AND fa.date_mod >= ?
+        AND fa.date_update >= ?
     ";
     $st = $src->prepare($sql);
     $st->execute([$lastUtc]);

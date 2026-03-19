@@ -129,7 +129,7 @@ final class ProblemsExtractor {
 
       LEFT JOIN (
         SELECT problems_id, MIN(groups_id) AS groups_id
-        FROM glpi_problems_groups
+        FROM glpi_groups_problems
         WHERE type = 2
         GROUP BY problems_id
       ) pg1 ON pg1.problems_id = p.id
