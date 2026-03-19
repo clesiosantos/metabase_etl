@@ -33,6 +33,11 @@ final class TimesheetExtractor {
       $fk = strtolower($type) . 's_id';
       $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
+      // Regra de Negócio: Se for Ticket, ignora se houver vínculo com Formcreator para evitar duplicidade
+      $filterForms = ($type === 'Ticket') 
+        ? "AND p.id NOT IN (SELECT tickets_id FROM glpi_items_tickets WHERE itemtype = 'PluginFormcreatorFormAnswer')" 
+        : "";
+
       $queries[] = "
         SELECT
           CONCAT('$type', '_', tk.id) as id_tarefa,
@@ -67,6 +72,7 @@ final class TimesheetExtractor {
         ) gd ON gd.$fk = p.id
         WHERE tk.id IN ($placeholders)
           AND tk.actiontime > 0
+          $filterForms
       ";
       
       foreach ($ids as $id) $params[] = $id;
