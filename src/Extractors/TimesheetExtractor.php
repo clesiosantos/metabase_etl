@@ -83,12 +83,12 @@ final class TimesheetExtractor {
   }
 
   public static function fetchChangedForm142Ids(PDO $src, string $lastUtc): array {
-    // Fallback para date_creation se não houver coluna de atualização
+    // Usando request_date conforme solicitado para filtrar respostas alteradas/solicitadas
     $sql = "
       SELECT fa.id
       FROM glpi_plugin_formcreator_formanswers fa
       WHERE fa.plugin_formcreator_forms_id = 142 
-        AND fa.date_creation >= ?
+        AND fa.request_date >= ?
     ";
     $st = $src->prepare($sql);
     $st->execute([$lastUtc]);
