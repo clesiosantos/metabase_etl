@@ -15,6 +15,7 @@
 ## 3. Regras Específicas de Negócio
 - **Timesheet Unificado:** Deve consolidar `glpi_tickettasks`, `glpi_changetasks`, `glpi_problemtasks` e `Formcreator (Form 142)`.
 - **Filtro de Órfãos:** Registros de timesheet/forms sem ticket pai vinculado **devem ser removidos** da carga através de INNER JOIN no extrator.
+- **Filtro de Tempo:** Registros com tempo de execução zerado (0 segundos/horas) **devem ser ignorados** na extração.
 - **SLA:** Cálculos de status (No Prazo, Em Risco, Fora do Prazo) devem ser feitos no SQL do Extractor para garantir consistência.
 
 ## 4. Observabilidade

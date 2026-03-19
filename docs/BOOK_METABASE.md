@@ -19,7 +19,9 @@ O ETL e o DW operam em **UTC**.
 ### Timesheet & Horas
 - **Fonte:** `metabase_timesheet`.
 - **Composição:** Unifica tarefas manuais e o formulário de apontamento (Form 142).
-- **Regra de Sucesso:** Filtra apenas formulários que possuem ticket pai vinculado.
+- **Regras de Qualidade:** 
+    - Filtra apenas formulários que possuem ticket pai vinculado.
+    - Ignora automaticamente qualquer lançamento com tempo igual a zero.
 
 ### Mudanças (Changes)
 - **Abertas:** Status NOT IN ('Aplicado', 'Cancelado', 'Recusado', 'Fechado').
