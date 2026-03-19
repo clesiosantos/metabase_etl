@@ -113,7 +113,7 @@ final class TimesheetExtractor {
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) AS tecnico,
           
           MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1651 THEN ans.answer END) AS data_lancamento,
-          fa.date_creation AS data_criacao_tarefa,
+          fa.request_date AS data_criacao_tarefa,
 
           ROUND(TIMESTAMPDIFF(SECOND, 
               MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1651 THEN ans.answer END), 

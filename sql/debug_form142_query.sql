@@ -14,7 +14,7 @@ SELECT
     COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) AS tecnico,
     
     MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1651 THEN ans.answer END) AS data_lancamento,
-    fa.date_creation AS data_criacao_tarefa,
+    fa.request_date AS data_criacao_tarefa,
 
     ROUND(TIMESTAMPDIFF(SECOND, 
         MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1651 THEN ans.answer END), 
@@ -32,5 +32,5 @@ JOIN glpi_plugin_formcreator_answers ans ON ans.plugin_formcreator_formanswers_i
 LEFT JOIN glpi_entities ent ON (ans.plugin_formcreator_questions_id = 1653 AND ent.id = ans.answer)
 LEFT JOIN glpi_groups grp ON (ans.plugin_formcreator_questions_id = 1654 AND grp.id = ans.answer)
 
-WHERE fa.id IN ($placeholders)
-GROUP BY fa.id
+WHERE fa.id IN (:ids)
+GROUP BY fa.id;
