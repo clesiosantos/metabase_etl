@@ -66,6 +66,7 @@ final class TimesheetExtractor {
             GROUP BY $fk
         ) gd ON gd.$fk = p.id
         WHERE tk.id IN ($placeholders)
+          AND tk.actiontime > 0
       ";
       
       foreach ($ids as $id) $params[] = $id;
@@ -147,6 +148,7 @@ final class TimesheetExtractor {
       LEFT JOIN glpi_users u ON u.id = t.requester_id
       LEFT JOIN glpi_tickets tk ON tk.id = t.ticket_id
       GROUP BY t.resposta_id, t.ticket_id, u.id, tk.id, t.request_date
+      HAVING horas > 0
     ";
 
     $st = $src->prepare($sql);
