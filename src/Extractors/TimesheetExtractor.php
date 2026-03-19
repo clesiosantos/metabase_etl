@@ -26,8 +26,7 @@ final class TimesheetExtractor {
       $table = 'glpi_' . strtolower($type) . 'tasks';
       $parentTable = 'glpi_' . strtolower($type) . 's';
       
-      // Mapeamento de tabelas de grupos (Inconsistência do GLPI)
-      $groupTable = 'glpi_groups_tickets'; // Default
+      $groupTable = 'glpi_groups_tickets'; 
       if ($type === 'Change') $groupTable = 'glpi_changes_groups';
       if ($type === 'Problem') $groupTable = 'glpi_groups_problems';
       
@@ -83,7 +82,6 @@ final class TimesheetExtractor {
   }
 
   public static function fetchChangedForm142Ids(PDO $src, string $lastUtc): array {
-    // Usando request_date conforme solicitado para filtrar respostas alteradas/solicitadas
     $sql = "
       SELECT fa.id
       FROM glpi_plugin_formcreator_formanswers fa
@@ -126,7 +124,7 @@ final class TimesheetExtractor {
           UTC_TIMESTAMP() AS data_carga
 
       FROM glpi_plugin_formcreator_formanswers fa
-      JOIN glpi_plugin_formcreator_formanswers_issues fai ON fai.plugin_formcreator_formanswers_id = fa.id
+      JOIN glpi_items_plugin_formcreator_formanswers fai ON fai.plugin_formcreator_formanswers_id = fa.id
       JOIN glpi_tickets tk ON tk.id = fai.items_id AND fai.itemtype = 'Ticket'
       JOIN glpi_users u ON u.id = fa.users_id
       JOIN glpi_plugin_formcreator_answers ans ON ans.plugin_formcreator_formanswers_id = fa.id

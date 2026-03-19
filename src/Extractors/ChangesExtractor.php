@@ -31,10 +31,7 @@ final class ChangesExtractor {
 
         c.date AS data_criacao,
         c.solvedate AS data_solucao,
-        
-        -- Fallback: se não houver data de fechamento, usa solução; se não houver solução, usa criação
         COALESCE(c.closedate, c.solvedate, c.date) AS data_fechamento,
-        
         c.date_mod AS data_ultima_atualizacao,
         DATE(c.date) AS data_id,
 
@@ -104,7 +101,6 @@ final class ChangesExtractor {
         SUBSTRING_INDEX(SUBSTRING_INDEX(gsol.completename, ' > ', 2), ' > ', -1) AS grupo_solucao,
         SUBSTRING_INDEX(gsol.completename, ' > ', -1) AS tipo_atividade,
 
-        -- Campos adicionais (Plugin Fields - Gestão de Mudanças)
         cf.name AS classificacao,
         ct.name AS classificacao_tecnica,
         amb.name AS ambiente,
@@ -114,17 +110,13 @@ final class ChangesExtractor {
         f.impactoaonegociofield AS impacto_negocio,
 
         COALESCE(NULLIF(TRIM(CONCAT(IFNULL(utech.firstname,''),' ',IFNULL(utech.realname,''))),''), utech.name) AS agente_solucionador,
-
         COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u_req.firstname,''),' ',IFNULL(u_req.realname,''))),''), u_req.name) AS nome_solicitante,
 
         e.name AS entidade_cliente,
         l.name AS localizacao_fisica,
-
         tagg.tags AS tags,
-
         c.users_id_recipient,
         c.locations_id,
-
         UTC_TIMESTAMP() AS data_carga
 
       FROM glpi_changes c
@@ -133,13 +125,11 @@ final class ChangesExtractor {
       LEFT JOIN glpi_locations l ON l.id = c.locations_id
       LEFT JOIN glpi_users u_req ON u_req.id = c.users_id_recipient
 
-      -- Plugin Fields - Gestão de Mudanças
       LEFT JOIN glpi_plugin_fields_changegestodemudanas f ON f.items_id = c.id
       LEFT JOIN glpi_plugin_fields_classificaofielddropdowns cf ON cf.id = f.plugin_fields_classificaofielddropdowns_id
       LEFT JOIN glpi_plugin_fields_classificaotecnicafielddropdowns ct ON ct.id = f.plugin_fields_classificaotecnicafielddropdowns_id
       LEFT JOIN glpi_plugin_fields_ambientefielddropdowns amb ON amb.id = f.plugin_fields_ambientefielddropdowns_id
       
-      -- Join para Modelo de Solução
       LEFT JOIN glpi_itilsolutions isol ON (isol.items_id = c.id AND isol.itemtype = 'Change')
       LEFT JOIN glpi_solutiontypes styp ON styp.id = isol.solutiontypes_id
 
@@ -153,7 +143,7 @@ final class ChangesExtractor {
 
       LEFT JOIN (
         SELECT changes_id, MIN(users_id) AS users_id
-        FROM glpi_changes_groups
+        FROM glpi_changes_users
         WHERE type = 2
         GROUP BY changes_id
       ) cu1 ON cu1.changes_id = c.id
