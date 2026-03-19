@@ -26,7 +26,7 @@ SELECT
 
 FROM glpi_plugin_formcreator_formanswers fa
 JOIN glpi_tickets tk ON tk.id = fa.items_id AND fa.itemtype = 'Ticket'
-JOIN glpi_users u ON u.id = fa.users_id
+JOIN glpi_users u ON u.id = fa.requester_id
 JOIN glpi_plugin_formcreator_answers ans ON ans.plugin_formcreator_formanswers_id = fa.id
 
 LEFT JOIN glpi_entities ent ON (ans.plugin_formcreator_questions_id = 1653 AND ent.id = ans.answer)
