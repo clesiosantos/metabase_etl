@@ -1,41 +1,22 @@
 # Regras de Desenvolvimento de IA - ETL GLPI → DW
 
-Este documento define a stack técnica, padrões arquiteturais e regras de uso de bibliotecas para este projeto.
+## 1. Stack Técnica & Padrões
+- **PHP 8.x CLI** (Strict Types).
+- **PDO Nativo:** Sem ORMs. Uso obrigatório de Prepared Statements.
+- **Timezone:** Estritamente **UTC**. Conexões devem executar `SET SESSION time_zone = '+00:00'`.
+- **Idempotência:** Loaders devem usar `INSERT ... ON DUPLICATE KEY UPDATE`.
 
-## 1. Stack Técnica
-- **Linguagem:** PHP 8.x (modo CLI).
-- **Banco de Dados:** MySQL 8.0+ (Origem: GLPI, Destino: Data Warehouse).
-- **Acesso ao Banco de Dados:** PHP `PDO` nativo (não é permitido ORM para manter performance e controle sobre JOINs complexos).
-- **Gerenciamento de Ambiente:** Classe `Config` customizada carregando arquivos `.env`.
-- **Controle de Concorrência:** Bloqueio baseado em MySQL via `GET_LOCK()` (implementado em `src/Lock.php`).
-- **Observabilidade:** Logs customizados em arquivos (`src/Logger.php`) e rastreamento em banco de dados (`etl_run`, `etl_error`, `etl_checkpoint`).
-- **Arquitetura:** Padrão ETL modular (Extractors, Transformers, Loaders, Jobs).
+## 2. Arquitetura Modular
+- **Extractors:** Devem lidar com JOINs complexos e filtragem de "is_deleted".
+- **Transformers:** Lógica stateless para normalização de dados e criação de faixas de tempo.
+- **Loaders:** Focados em performance e mapeamento de colunas.
+- **Jobs:** Devem gerenciar transações e registrar logs via `EtlRun`/`EtlError`.
 
-## 2. Regras de Bibliotecas e Componentes
+## 3. Regras Específicas de Negócio
+- **Timesheet Unificado:** Deve consolidar `glpi_tickettasks`, `glpi_changetasks`, `glpi_problemtasks` e `Formcreator (Form 142)`.
+- **Filtro de Órfãos:** Registros de timesheet/forms sem ticket pai vinculado **devem ser removidos** da carga através de INNER JOIN no extrator.
+- **SLA:** Cálculos de status (No Prazo, Em Risco, Fora do Prazo) devem ser feitos no SQL do Extractor para garantir consistência.
 
-### 2.1 Banco de Dados (MySQL/PDO)
-- **Sempre** use `PDO` com prepared statements.
-- **Nunca** use `mysqli` ou concatenação direta de strings para queries.
-- **Timezones:** O sistema opera estritamente em **UTC**. As conexões com o banco de dados devem definir `SET SESSION time_zone = '+00:00'`.
-
-### 2.2 Arquitetura ETL
-- **Extractors (`src/Extractors/`):** Responsáveis por buscar IDs e dados detalhados da origem (GLPI). Devem lidar com JOINs complexos.
-- **Transformers (`src/Transformers/`):** Responsáveis pela limpeza e normalização dos dados. A lógica deve ser stateless (sem estado).
-- **Loaders (`src/Loaders/`):** Responsáveis por operações de `UPSERT` (`INSERT ... ON DUPLICATE KEY UPDATE`) no DW de destino.
-- **Jobs (`src/Jobs/`):** Orquestram o fluxo entre Extractor, Transformer e Loader para uma entidade específica.
-
-### 2.3 Tratamento de Erros e Observabilidade
-- **Logging:** Use a classe `Logger` para logs em arquivo.
-- **Rastreamento:** Toda execução deve ser registrada em `etl_run` usando a classe `EtlRun`.
-- **Erros:** Capture exceções no nível do Job e registre-as na tabela `etl_error` usando `EtlError`.
-- **Checkpoints:** Use `Checkpoint::get()` e `Checkpoint::set()` para gerenciar cargas incrementais.
-
-### 2.4 Padrões de Código
-- **Tipagem Estrita:** Use `declare(strict_types=1);` em todos os novos arquivos.
-- **Nomenclatura:** Use PascalCase para Classes e camelCase para métodos/variáveis.
-- **Idempotência:** Todos os Loaders devem ser idempotentes (executar os mesmos dados duas vezes não deve criar duplicatas).
-
-## 3. Ações Proibidas
-- **Sem Dependências Externas:** Não adicione pacotes Composer a menos que seja estritamente necessário e aprovado.
-- **Sem Lógica de UI:** Esta é uma ferramenta CLI; não adicione HTML/CSS/JS.
-- **Sem Credenciais Hardcoded:** Sempre use `Config::get()` ou `$_ENV`.
+## 4. Observabilidade
+- Todo erro deve ser capturado no Job e persistido na tabela `etl_error`.
+- O Checkpoint só deve ser atualizado após o `commit` bem-sucedido de todos os batches da entidade.
