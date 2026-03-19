@@ -137,7 +137,8 @@ final class TimesheetExtractor {
           FROM glpi_plugin_formcreator_formanswers fa
           JOIN glpi_plugin_formcreator_answers a ON a.plugin_formcreator_formanswers_id = fa.id
           JOIN glpi_plugin_formcreator_questions q ON q.id = a.plugin_formcreator_questions_id
-          LEFT JOIN glpi_items_tickets it ON it.items_id = fa.id AND it.itemtype = 'PluginFormcreatorFormAnswer'
+          -- Regra: Remover registros sem ticket pai vinculado (INNER JOIN)
+          JOIN glpi_items_tickets it ON it.items_id = fa.id AND it.itemtype = 'PluginFormcreatorFormAnswer'
           LEFT JOIN glpi_entities e ON (q.id = 1653 AND e.id = a.answer)
           LEFT JOIN glpi_groups g ON (q.id = 1654 AND g.id = a.answer)
           WHERE fa.id IN ($placeholders)
