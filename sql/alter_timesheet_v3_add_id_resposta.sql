@@ -1,0 +1,1 @@
+ALTER TABLE metabase_timesheet ADD COLUMN id_resposta INT NULL AFTER id_tarefa_original;

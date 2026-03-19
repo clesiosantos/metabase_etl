@@ -23,8 +23,11 @@ final class TimesheetExtractor {
       $ids = array_column(array_filter($tasks, fn($t) => $t['type'] === $type), 'id');
       if (!$ids) continue;
 
-      $table = strtolower($type) . 'tasks';
+      $table = 'glpi_' . strtolower($type) . 'tasks';
       $parentTable = 'glpi_' . strtolower($type) . 's';
+      $groupTable = 'glpi_' . strtolower($type) . 's_groups'; // Padrão GLPI para Changes/Problems
+      if ($type === 'Ticket') $groupTable = 'glpi_groups_tickets';
+      
       $fk = strtolower($type) . 's_id';
       $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
@@ -32,38 +35,34 @@ final class TimesheetExtractor {
         SELECT
           CONCAT('$type', '_', tk.id) as id_tarefa,
           tk.id as id_tarefa_original,
+          NULL as id_resposta,
           CONCAT(p.id, '-', tk.id) as id_tarefa_formatado,
           '$type' as tipo_ticket,
           p.id as id_pai,
           p.date as data_abertura_pai,
           p.closedate as data_fechamento_pai,
           e.name as cliente,
-          COALESCE(g.name, 'Sem Grupo') as grupo_solucionador,
+          COALESCE(gd.area_atuacao, 'Sem grupo') as grupo_solucionador,
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) as tecnico,
-          
-          -- Lógica Reforçada: Prioriza begin se for data válida, caso contrário usa date (criação)
-          CASE 
-            WHEN tk.begin IS NOT NULL AND YEAR(tk.begin) > 0
-            THEN tk.begin 
-            ELSE tk.date 
-          END as data_lancamento,
-          
+          tk.date as data_lancamento,
           tk.date as data_criacao_tarefa,
-          
           (tk.actiontime / 3600) as horas,
           COALESCE(tc.name, 'Comercial') as tipo_hora,
           UTC_TIMESTAMP() as data_carga
-        FROM glpi_$table tk
+        FROM $table tk
         JOIN $parentTable p ON p.id = tk.$fk
         LEFT JOIN glpi_entities e ON e.id = p.entities_id
         LEFT JOIN glpi_users u ON u.id = tk.users_id
         LEFT JOIN glpi_taskcategories tc ON tc.id = tk.taskcategories_id
         LEFT JOIN (
-          SELECT users_id, MIN(groups_id) as groups_id 
-          FROM gu_groups_users 
-          GROUP BY users_id
-        ) gu ON gu.users_id = u.id
-        LEFT JOIN glpi_groups g ON g.id = gu.groups_id
+            SELECT
+                $fk,
+                MIN(g.name) AS area_atuacao
+            FROM $groupTable gt
+            INNER JOIN glpi_groups g ON g.id = gt.groups_id
+            WHERE gt.type = 2
+            GROUP BY $fk
+        ) gd ON gd.$fk = p.id
         WHERE tk.id IN ($placeholders)
       ";
       
@@ -84,8 +83,7 @@ final class TimesheetExtractor {
     $sql = "
       SELECT fa.id
       FROM glpi_plugin_formcreator_formanswers fa
-      JOIN glpi_plugin_formcreator_forms f ON f.id = fa.plugin_formcreator_forms_id
-      WHERE f.id = 142 
+      WHERE fa.plugin_formcreator_forms_id = 142 
         AND fa.date_mod >= ?
     ";
     $st = $src->prepare($sql);
@@ -100,8 +98,9 @@ final class TimesheetExtractor {
       SELECT 
           CONCAT('FORM_', fa.id) AS id_tarefa,
           fa.id AS id_tarefa_original,
+          fa.id AS id_resposta,
           CONCAT(tk.id, '-') AS id_tarefa_formatado,
-          'Ticket' AS tipo_ticket,
+          'Forms' AS tipo_ticket,
           tk.id AS id_pai,
           tk.date AS data_abertura_pai,
           tk.closedate AS data_fechamento_pai,
@@ -111,12 +110,7 @@ final class TimesheetExtractor {
           
           COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.firstname,''),' ',IFNULL(u.realname,''))),''), u.name) AS tecnico,
           
-          -- Para formulário, tenta a resposta 1651, se inválida usa data de criação do formulário
-          COALESCE(
-            NULLIF(NULLIF(MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1651 THEN ans.answer END), '0000-00-00 00:00:00'), ''),
-            fa.date_creation
-          ) AS data_lancamento,
-          
+          MAX(CASE WHEN ans.plugin_formcreator_questions_id = 1651 THEN ans.answer END) AS data_lancamento,
           fa.date_creation AS data_criacao_tarefa,
 
           ROUND(TIMESTAMPDIFF(SECOND, 
