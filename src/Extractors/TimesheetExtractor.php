@@ -33,8 +33,6 @@ final class TimesheetExtractor {
       $fk = strtolower($type) . 's_id';
       $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
-      // Regra de Negócio: Se for Ticket, ignora apenas se for do Formulário 142 (que tem carga própria via fetchForm142Details)
-      // Isso evita duplicidade no Form 142, mas permite carregar tarefas de outros formulários (ex: Ticket 43507).
       $filterForms = ($type === 'Ticket') 
         ? "AND p.id NOT IN (
               SELECT it.tickets_id 
@@ -129,10 +127,8 @@ final class TimesheetExtractor {
           MAX(CASE WHEN t.id_pergunta = 1651 THEN t.resposta END) AS data_lancamento,
           t.request_date AS data_criacao_tarefa,
 
-          ROUND(TIMESTAMPDIFF(SECOND,
-              MAX(CASE WHEN t.id_pergunta = 1651 THEN t.resposta END),
-              MAX(CASE WHEN t.id_pergunta = 1652 THEN t.resposta END)
-          ) / 3600, 2) AS horas,
+          -- NOVA LÓGICA: Em vez de calcular pelas datas do Form, soma o actiontime das tarefas do ticket
+          COALESCE((SELECT SUM(actiontime) FROM glpi_tickettasks WHERE tickets_id = t.ticket_id), 0) / 3600 AS horas,
 
           MAX(CASE WHEN t.id_pergunta = 1655 THEN t.resposta END) AS tipo_hora,
           UTC_TIMESTAMP() AS data_carga
@@ -151,7 +147,6 @@ final class TimesheetExtractor {
           FROM glpi_plugin_formcreator_formanswers fa
           JOIN glpi_plugin_formcreator_answers a ON a.plugin_formcreator_formanswers_id = fa.id
           JOIN glpi_plugin_formcreator_questions q ON q.id = a.plugin_formcreator_questions_id
-          -- Regra: Remover registros sem ticket pai vinculado (INNER JOIN)
           JOIN glpi_items_tickets it ON it.items_id = fa.id AND it.itemtype = 'PluginFormcreatorFormAnswer'
           LEFT JOIN glpi_entities e ON (q.id = 1653 AND e.id = a.answer)
           LEFT JOIN glpi_groups g ON (q.id = 1654 AND g.id = a.answer)
