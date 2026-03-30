@@ -34,7 +34,7 @@ final class ChangesExtractor {
         COALESCE(c.closedate, c.solvedate, c.date) AS data_fechamento,
         c.date_mod AS data_ultima_atualizacao,
         DATE(c.date) AS data_id,
-        
+
         CASE c.status
             WHEN 1 THEN 'Novo'
             WHEN 9 THEN 'Avaliação'
