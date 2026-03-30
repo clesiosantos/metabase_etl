@@ -93,4 +93,11 @@ final class ChangesLoader {
     ";
     return $dst->prepare($sql);
   }
+
+  public static function pruneInactive(PDO $dst, string $loadTimestamp): int {
+    $sql = "DELETE FROM metabase_changes WHERE data_carga < ?";
+    $st = $dst->prepare($sql);
+    $st->execute([$loadTimestamp]);
+    return $st->rowCount();
+  }
 }

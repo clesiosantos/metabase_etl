@@ -2,17 +2,16 @@
 declare(strict_types=1);
 
 final class TagsJobs {
-  public static function syncDimTags(PDO $src, PDO $dst): int {
+  public static function syncDimTags(PDO $src, PDO $dst, string $loadTimestamp): int {
     $stTags = TagsExtractor::fetchAllTags($src);
     $upDim  = TagsLoader::upsertDimTags($dst);
 
     $dst->beginTransaction();
     try {
       $count = 0;
-      $now = gmdate('Y-m-d H:i:s');
 
       while ($row = $stTags->fetch(PDO::FETCH_ASSOC)) {
-        $row['data_carga'] = $now;
+        $row['data_carga'] = $loadTimestamp;
         $upDim->execute($row);
         $count++;
       }
@@ -25,7 +24,7 @@ final class TagsJobs {
     }
   }
 
-  public static function refreshTicketLinks(PDO $src, PDO $dst, array $ticketIds): int {
+  public static function refreshTicketLinks(PDO $src, PDO $dst, array $ticketIds, string $loadTimestamp): int {
     if (!$ticketIds) {
       return 0;
     }
@@ -38,13 +37,12 @@ final class TagsJobs {
       $upBridge = TagsLoader::upsertBridgeTicketTags($dst);
 
       $count = 0;
-      $now = gmdate('Y-m-d H:i:s');
 
       while ($row = $stLinks->fetch(PDO::FETCH_ASSOC)) {
         $upBridge->execute([
           ':ticket_id' => (int)$row['ticket_id'],
           ':tag_id' => (int)$row['tag_id'],
-          ':data_carga' => $now
+          ':data_carga' => $loadTimestamp
         ]);
         $count++;
       }
@@ -57,7 +55,7 @@ final class TagsJobs {
     }
   }
 
-  public static function refreshChangeLinks(PDO $src, PDO $dst, array $changeIds): int {
+  public static function refreshChangeLinks(PDO $src, PDO $dst, array $changeIds, string $loadTimestamp): int {
     if (!$changeIds) {
       return 0;
     }
@@ -70,13 +68,12 @@ final class TagsJobs {
       $upBridge = TagsLoader::upsertBridgeChangeTags($dst);
 
       $count = 0;
-      $now = gmdate('Y-m-d H:i:s');
 
       while ($row = $stLinks->fetch(PDO::FETCH_ASSOC)) {
         $upBridge->execute([
           ':change_id' => (int)$row['change_id'],
           ':tag_id' => (int)$row['tag_id'],
-          ':data_carga' => $now
+          ':data_carga' => $loadTimestamp
         ]);
         $count++;
       }
@@ -89,7 +86,7 @@ final class TagsJobs {
     }
   }
 
-  public static function refreshProblemLinks(PDO $src, PDO $dst, array $problemIds): int {
+  public static function refreshProblemLinks(PDO $src, PDO $dst, array $problemIds, string $loadTimestamp): int {
     if (!$problemIds) {
       return 0;
     }
@@ -102,13 +99,12 @@ final class TagsJobs {
       $upBridge = TagsLoader::upsertBridgeProblemTags($dst);
 
       $count = 0;
-      $now = gmdate('Y-m-d H:i:s');
 
       while ($row = $stLinks->fetch(PDO::FETCH_ASSOC)) {
         $upBridge->execute([
           ':problem_id' => (int)$row['problem_id'],
           ':tag_id' => (int)$row['tag_id'],
-          ':data_carga' => $now
+          ':data_carga' => $loadTimestamp
         ]);
         $count++;
       }

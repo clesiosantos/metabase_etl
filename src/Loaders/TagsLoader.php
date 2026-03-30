@@ -84,4 +84,17 @@ final class TagsLoader {
     $st = $dst->prepare($sql);
     $st->execute(array_values($problemIds));
   }
+
+  public static function pruneBridgeLinks(PDO $dst, string $itemtype, string $loadTimestamp): int {
+    $table = match ($itemtype) {
+      'Ticket' => 'bridge_ticket_tags',
+      'Change' => 'bridge_change_tags',
+      'Problem' => 'bridge_problem_tags',
+      default => throw new InvalidArgumentException("Itemtype inválido: $itemtype"),
+    };
+    $sql = "DELETE FROM $table WHERE data_carga < ?";
+    $st = $dst->prepare($sql);
+    $st->execute([$loadTimestamp]);
+    return $st->rowCount();
+  }
 }

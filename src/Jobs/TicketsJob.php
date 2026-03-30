@@ -17,9 +17,10 @@ final class TicketsJob {
     $fullDays  = (int)$cfg['etl']['window_full_days'];
 
     $startedAt = microtime(true);
+    $loadTimestamp = gmdate('Y-m-d H:i:s');
 
     $runId = EtlRun::start($dst, $entity, $mode, $fullDays, $batchSize, $tablesUpdated);
-    $log->info("TicketsJob: início", ['run_id' => $runId, 'mode' => $mode, 'full_days' => $fullDays, 'batch' => $batchSize]);
+    $log->info("TicketsJob: início", ['run_id' => $runId, 'mode' => $mode, 'full_days' => $fullDays, 'batch' => $batchSize, 'load_timestamp' => $loadTimestamp]);
 
     try {
       $fullStart = (new DateTime('now', new DateTimeZone('UTC')))
@@ -38,12 +39,12 @@ final class TicketsJob {
       $log->info("TicketsJob: ids selecionados", ['run_id' => $runId, 'ids' => $idsSelected]);
 
       // TAGS: sincroniza dimensão sempre
-      $dimCount = TagsJobs::syncDimTags($src, $dst);
+      $dimCount = TagsJobs::syncDimTags($src, $dst, $loadTimestamp);
       $log->info("TicketsJob: dim_tags sincronizada", ['run_id' => $runId, 'tags' => $dimCount]);
 
       // TAGS: atualiza ponte só para os tickets impactados
       if ($idsSelected > 0) {
-        $linkCount = TagsJobs::refreshTicketLinks($src, $dst, $ids);
+        $linkCount = TagsJobs::refreshTicketLinks($src, $dst, $ids, $loadTimestamp);
         $log->info("TicketsJob: bridge_ticket_tags sincronizada", [
           'run_id' => $runId,
           'tickets' => $idsSelected,
@@ -52,6 +53,15 @@ final class TicketsJob {
       }
 
       if ($idsSelected === 0) {
+        if ($mode === 'full') {
+          $prunedTickets = TicketsLoader::pruneInactive($dst, $loadTimestamp);
+          $prunedLinks = TagsLoader::pruneBridgeLinks($dst, 'Ticket', $loadTimestamp);
+          $log->info("TicketsJob: pruning finalizado (Full Mode - sem dados)", [
+            'run_id' => $runId,
+            'pruned_tickets' => $prunedTickets,
+            'pruned_links' => $prunedLinks
+          ]);
+        }
         $validation = Validator::validateTickets($dst);
         EtlRun::finishSuccess($dst, $runId, $validation, "Nada a processar");
         Checkpoint::set($dst, $entity, gmdate('Y-m-d H:i:s'));
@@ -75,10 +85,12 @@ final class TicketsJob {
         try {
           while ($row = $srcSt->fetch(PDO::FETCH_ASSOC)) {
             $row = TicketsTransformer::normalize($row);
+            $row['data_carga'] = $loadTimestamp;
             $upSt->execute($row);
             $upsertedThisBatch += (int)$upSt->rowCount();
           }
           $dst->commit();
+
         } catch (Throwable $e) {
           $dst->rollBack();
           EtlError::log($dst, $runId, $entity, $e->getMessage(), ['batch' => $i + 1]);
@@ -97,6 +109,16 @@ final class TicketsJob {
       }
 
       Checkpoint::set($dst, $entity, gmdate('Y-m-d H:i:s'));
+
+      if ($mode === 'full') {
+        $prunedTickets = TicketsLoader::pruneInactive($dst, $loadTimestamp);
+        $prunedLinks = TagsLoader::pruneBridgeLinks($dst, 'Ticket', $loadTimestamp);
+        $log->info("TicketsJob: pruning finalizado (Full Mode)", [
+          'run_id' => $runId,
+          'pruned_tickets' => $prunedTickets,
+          'pruned_links' => $prunedLinks
+        ]);
+      }
 
       $validation = Validator::validateTickets($dst);
 

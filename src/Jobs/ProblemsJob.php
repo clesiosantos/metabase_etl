@@ -5,6 +5,7 @@ final class ProblemsJob {
     $entity = 'problems';
     $tablesUpdated = ['metabase_problems', 'dim_tags', 'bridge_problem_tags'];
 
+    $loadTimestamp = gmdate('Y-m-d H:i:s');
     $runId = EtlRun::start($dst, $entity, $mode, $windowFullDays, $batchSize, $tablesUpdated);
 
     try {
@@ -21,27 +22,41 @@ final class ProblemsJob {
       EtlRun::setSelected($dst, $runId, $idsSelected);
 
       // TAGS: mantém dim_tags sincronizada e atualiza ponte só para os problemas impactados
-      TagsJobs::syncDimTags($src, $dst);
+      TagsJobs::syncDimTags($src, $dst, $loadTimestamp);
       if ($idsSelected > 0) {
-        TagsJobs::refreshProblemLinks($src, $dst, $ids);
+        TagsJobs::refreshProblemLinks($src, $dst, $ids, $loadTimestamp);
       }
 
-      $upsert = ProblemsLoader::upsertStatement($dst);
+      if ($idsSelected > 0) {
+        $upsert = ProblemsLoader::upsertStatement($dst);
 
-      for ($i = 0; $i < $idsSelected; $i += $batchSize) {
-        $chunk = array_slice($ids, $i, $batchSize);
-        $st = ProblemsExtractor::fetchDetailsByIds($src, $chunk);
+        for ($i = 0; $i < $idsSelected; $i += $batchSize) {
+          $chunk = array_slice($ids, $i, $batchSize);
+          $st = ProblemsExtractor::fetchDetailsByIds($src, $chunk);
 
-        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
-          $upsert->execute(self::bindRow($row));
-          EtlRun::addUpserted($dst, $runId, 1);
+          $dst->beginTransaction();
+          try {
+            while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+              $upsert->execute(self::bindRow($row, $loadTimestamp));
+              EtlRun::addUpserted($dst, $runId, 1);
+            }
+            $dst->commit();
+          } catch (Throwable $e) {
+            $dst->rollBack();
+            throw $e;
+          }
         }
+      }
+
+      Checkpoint::set($dst, $entity, gmdate('Y-m-d H:i:s'));
+
+      if ($mode === 'full') {
+        ProblemsLoader::pruneInactive($dst, $loadTimestamp);
+        TagsLoader::pruneBridgeLinks($dst, 'Problem', $loadTimestamp);
       }
 
       $validation = self::validate($dst);
       EtlRun::finishSuccess($dst, $runId, $validation, 'OK');
-
-      Checkpoint::set($dst, $entity, gmdate('Y-m-d H:i:s'));
 
     } catch (Throwable $e) {
       EtlError::log($dst, $runId, $entity, $e->getMessage(), [
@@ -60,7 +75,7 @@ final class ProblemsJob {
     }
   }
 
-  private static function bindRow(array $row): array {
+  private static function bindRow(array $row, string $loadTimestamp): array {
     return [
       ':chamado' => $row['chamado'] ?? null,
       ':titulo_chamado' => $row['titulo_chamado'] ?? null,
@@ -112,7 +127,7 @@ final class ProblemsJob {
       ':users_id_recipient' => $row['users_id_recipient'] ?? null,
       ':locations_id' => $row['locations_id'] ?? null,
 
-      ':data_carga' => $row['data_carga'] ?? gmdate('Y-m-d H:i:s'),
+      ':data_carga' => $loadTimestamp,
     ];
   }
 
