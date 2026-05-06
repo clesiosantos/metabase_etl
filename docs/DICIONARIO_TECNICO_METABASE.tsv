@@ -1,0 +1,198 @@
+tabela	coluna	tipo_dado	pk	fk_logica	origem_dados	regra_negocio	observacoes
+metabase_tickets	chamado	INT	SIM	-	glpi_tickets.id	Identificador único do ticket no DW	Grão: 1 linha por ticket
+metabase_tickets	titulo_chamado	VARCHAR(255)	NÃO	-	glpi_tickets.name	Título do chamado	-
+metabase_tickets	tipo_chamado	VARCHAR(50)	NÃO	-	glpi_tickets.type	1=Incidente; 2=Requisição; demais=Outro	Campo textual derivado
+metabase_tickets	data_criacao	DATETIME	NÃO	-	glpi_tickets.date	Data de abertura do ticket	UTC
+metabase_tickets	data_solucao	DATETIME	NÃO	-	glpi_tickets.solvedate	Data de solução	UTC
+metabase_tickets	data_fechamento	DATETIME	NÃO	-	glpi_tickets.closedate	Data de fechamento	UTC
+metabase_tickets	data_ultima_atualizacao	DATETIME	NÃO	-	glpi_tickets.date_mod	Última atualização do ticket	UTC
+metabase_tickets	data_id	DATE	NÃO	-	DATE(glpi_tickets.date)	Data analítica para cruzamento com calendário	Usada com dim_calendario
+metabase_tickets	status_chamado	VARCHAR(50)	NÃO	-	glpi_tickets.status	Status numérico traduzido para descrição textual	Ex.: Novo, Pendente, Fechado
+metabase_tickets	prioridade	VARCHAR(20)	NÃO	-	glpi_tickets.priority	Valor convertido para texto	-
+metabase_tickets	urgencia	VARCHAR(20)	NÃO	-	glpi_tickets.urgency	Valor convertido para texto	-
+metabase_tickets	impacto	VARCHAR(20)	NÃO	-	glpi_tickets.impact	Valor convertido para texto	-
+metabase_tickets	canal	VARCHAR(100)	NÃO	-	glpi_requesttypes.name	Canal de abertura do chamado	-
+metabase_tickets	status_sla	VARCHAR(50)	NÃO	-	Cálculo SQL no extractor	Consolida situação do SLA	Valores como SLA NO PRAZO / EM RISCO / FORA DO PRAZO / SEM SLA
+metabase_tickets	tto_status	VARCHAR(50)	NÃO	-	Cálculo SQL no extractor	Situação do SLA de atendimento	NO PRAZO / EM RISCO / FORA DO PRAZO / SEM SLA
+metabase_tickets	ttr_status	VARCHAR(50)	NÃO	-	Cálculo SQL no extractor	Situação do SLA de solução	NO PRAZO / EM RISCO / FORA DO PRAZO / SEM SLA
+metabase_tickets	tto_em_risco	TINYINT(1)	NÃO	-	Cálculo SQL no extractor	1 quando atendimento está em risco	0/1
+metabase_tickets	ttr_em_risco	TINYINT(1)	NÃO	-	Cálculo SQL no extractor	1 quando solução está em risco	0/1
+metabase_tickets	limite_solucao	DATETIME	NÃO	-	glpi_tickets.time_to_resolve	Prazo limite de solução	UTC
+metabase_tickets	limite_atendimento	DATETIME	NÃO	-	glpi_tickets.time_to_own	Prazo limite de atendimento	UTC
+metabase_tickets	sla_risco	TINYINT(1)	NÃO	-	Cálculo SQL no extractor	1 quando SLA geral está em risco	0/1
+metabase_tickets	sla_atendimento_ok	TINYINT(1)	NÃO	-	Cálculo SQL no extractor	1 se atendimento ocorreu no prazo	Pode ser NULL quando não aplicável
+metabase_tickets	sla_solucao_ok	TINYINT(1)	NÃO	-	Cálculo SQL no extractor	1 se solução ocorreu no prazo	Pode ser NULL quando não aplicável
+metabase_tickets	tma_minutos	INT	NÃO	-	Cálculo SQL no extractor	Tempo até primeiro atendimento em minutos	-
+metabase_tickets	mttr_minutos	INT	NÃO	-	Cálculo SQL no extractor	Tempo até solução em minutos	-
+metabase_tickets	aging_minutos	INT	NÃO	-	Cálculo SQL no extractor	Tempo de vida do ticket em minutos	Para abertos usa UTC_TIMESTAMP()
+metabase_tickets	tempo_primeiro_atendimento_minutos	INT	NÃO	-	Cálculo SQL no extractor	Equivale ao TMA	-
+metabase_tickets	tempo_espera_minutos	INT	NÃO	-	glpi_tickets.sla_waiting_duration	Tempo em espera convertido de segundos para minutos	-
+metabase_tickets	dias_sem_atualizacao	INT	NÃO	-	Cálculo SQL no extractor	Diferença em dias entre date_mod e UTC_TIMESTAMP()	-
+metabase_tickets	faixa_sem_atualizacao	VARCHAR(50)	NÃO	-	Transformer TicketsTransformer	Faixa categórica de dias sem atualização	Até 1 dia / Até 3 dias / Até 7 dias / Maior que 7 dias / N/A
+metabase_tickets	faixa_aging	VARCHAR(50)	NÃO	-	Transformer TicketsTransformer	Faixa categórica de aging	0 a 3 dias / Até 5 / Até 10 / Até 15 / Até 30 / Maior que 30 / N/A
+metabase_tickets	servico_completo	VARCHAR(255)	NÃO	-	glpi_itilcategories.completename	Caminho completo da categoria	-
+metabase_tickets	categoria	VARCHAR(100)	NÃO	-	Derivado de servico_completo	Primeiro nível da categoria	-
+metabase_tickets	subcategoria	VARCHAR(100)	NÃO	-	Derivado de servico_completo	Segundo nível da categoria	-
+metabase_tickets	servico	VARCHAR(100)	NÃO	-	Derivado de servico_completo	Último nível da categoria	-
+metabase_tickets	tipo_solucao	VARCHAR(255)	NÃO	-	glpi_solutiontypes.name	Tipo/modelo de solução	-
+metabase_tickets	disciplina_solucao	VARCHAR(100)	NÃO	-	Derivado de tipo_solucao	Parte anterior a :: quando existir	-
+metabase_tickets	modelo_solucao	VARCHAR(100)	NÃO	-	Derivado de tipo_solucao	Parte posterior a :: ou valor integral	-
+metabase_tickets	grupo_solucionador	VARCHAR(255)	NÃO	-	glpi_groups.completename	Hierarquia completa do grupo solucionador	-
+metabase_tickets	grupo_solucionador_nome	VARCHAR(255)	NÃO	-	glpi_groups.name	Nome simples do grupo	-
+metabase_tickets	id_grupo_solucionador	INT	NÃO	-	glpi_groups.id	ID do grupo solucionador	-
+metabase_tickets	tipo_contrato	VARCHAR(100)	NÃO	-	Derivado de grupo_solucionador	Primeiro nível da hierarquia do grupo	-
+metabase_tickets	grupo_solucao	VARCHAR(100)	NÃO	-	Derivado de grupo_solucionador	Segundo nível da hierarquia do grupo	-
+metabase_tickets	tipo_atividade	VARCHAR(100)	NÃO	-	Derivado de grupo_solucionador	Último nível da hierarquia do grupo	-
+metabase_tickets	agente_solucionador	VARCHAR(255)	NÃO	-	glpi_users	Nome do técnico atribuído	Montado por firstname/realname com fallback para username
+metabase_tickets	nome_solicitante	VARCHAR(255)	NÃO	-	glpi_users	Nome do solicitante	-
+metabase_tickets	nome_tecnico_responsavel	VARCHAR(255)	NÃO	-	glpi_users	Mesmo técnico atribuído usado em agente_solucionador	-
+metabase_tickets	entidade_cliente	VARCHAR(255)	NÃO	-	glpi_entities.name	Cliente/entidade	Indexado
+metabase_tickets	localizacao_fisica	VARCHAR(255)	NÃO	-	glpi_locations.name	Localização física	-
+metabase_tickets	reaberturas	INT	NÃO	-	Valor fixo no extractor	Atualmente sempre 0	Campo reservado
+metabase_tickets	tempo_total_lancados	DECIMAL(10,2)	NÃO	-	Soma de glpi_tickettasks.actiontime	Total lançado em horas	Actiontime convertido de segundos para horas
+metabase_tickets	tem_tecnico_atribuido	TINYINT(1)	NÃO	-	Cálculo SQL no extractor	1 quando existe técnico atribuído	0/1
+metabase_tickets	tem_prioridade	TINYINT(1)	NÃO	-	Cálculo SQL no extractor	1 quando prioridade é diferente de 0	0/1
+metabase_tickets	incidente_recorrente	TINYINT(1)	NÃO	-	Valor fixo no extractor	Atualmente sempre 0	Campo reservado
+metabase_tickets	tags	TEXT	NÃO	-	Agregação de glpi_plugin_tag_tags.name	Lista textual de tags ativas do ticket	Uso simples no Metabase
+metabase_tickets	users_id_recipient	INT	NÃO	-	glpi_tickets.users_id_recipient	ID do solicitante	-
+metabase_tickets	locations_id	INT	NÃO	-	glpi_tickets.locations_id	ID da localização	-
+metabase_tickets	data_carga	DATETIME	NÃO	-	ETL	Timestamp UTC da execução que gravou a linha	Usado para pruning em full
+metabase_changes	chamado	INT	SIM	-	glpi_changes.id	Identificador único da mudança	Grão: 1 linha por change
+metabase_changes	titulo_chamado	VARCHAR(255)	NÃO	-	glpi_changes.name	Título da mudança	-
+metabase_changes	data_criacao	DATETIME	NÃO	-	glpi_changes.date	Data de abertura	UTC
+metabase_changes	data_solucao	DATETIME	NÃO	-	glpi_changes.solvedate	Data de solução	UTC
+metabase_changes	data_fechamento	DATETIME	NÃO	-	COALESCE(glpi_changes.closedate, glpi_changes.solvedate, glpi_changes.date)	Data analítica de fechamento	Sempre tenta preencher referência de fechamento
+metabase_changes	data_ultima_atualizacao	DATETIME	NÃO	-	glpi_changes.date_mod	Última atualização	UTC
+metabase_changes	data_id	DATE	NÃO	-	DATE(glpi_changes.date)	Data analítica	Usada com dim_calendario
+metabase_changes	status_chamado	VARCHAR(50)	NÃO	-	glpi_changes.status	Status numérico traduzido para texto	Ex.: Novo, Aplicado, Fechado
+metabase_changes	prioridade	VARCHAR(20)	NÃO	-	glpi_changes.priority	Valor convertido para texto	-
+metabase_changes	urgencia	VARCHAR(20)	NÃO	-	glpi_changes.urgency	Valor convertido para texto	-
+metabase_changes	impacto	VARCHAR(20)	NÃO	-	glpi_changes.impact	Valor convertido para texto	-
+metabase_changes	ttr_status	VARCHAR(50)	NÃO	-	Cálculo SQL no extractor	Situação do SLA de solução	NO PRAZO / EM RISCO / FORA DO PRAZO / SEM SLA
+metabase_changes	ttr_em_risco	TINYINT(1)	NÃO	-	Cálculo SQL no extractor	1 quando SLA está em risco	0/1
+metabase_changes	limite_solucao	DATETIME	NÃO	-	glpi_changes.time_to_resolve	Prazo limite de solução	UTC
+metabase_changes	mttr_minutos	INT	NÃO	-	Cálculo SQL no extractor	Tempo até solução em minutos	-
+metabase_changes	aging_minutos	INT	NÃO	-	Cálculo SQL no extractor	Tempo de vida da mudança em minutos	Para abertos usa UTC_TIMESTAMP()
+metabase_changes	servico_completo	VARCHAR(255)	NÃO	-	glpi_itilcategories.completename	Caminho completo da categoria	-
+metabase_changes	categoria	VARCHAR(100)	NÃO	-	Derivado de servico_completo	Primeiro nível da categoria	-
+metabase_changes	subcategoria	VARCHAR(100)	NÃO	-	Derivado de servico_completo	Segundo nível da categoria	-
+metabase_changes	servico	VARCHAR(100)	NÃO	-	Derivado de servico_completo	Último nível da categoria	-
+metabase_changes	tipo_solucao	VARCHAR(255)	NÃO	-	glpi_solutiontypes.name	Tipo/modelo de solução	-
+metabase_changes	disciplina_solucao	VARCHAR(100)	NÃO	-	Derivado de tipo_solucao	Parte anterior a :: quando existir	-
+metabase_changes	modelo_solucao	VARCHAR(100)	NÃO	-	Derivado de tipo_solucao	Parte posterior a :: ou valor integral	-
+metabase_changes	grupo_solucionador	VARCHAR(255)	NÃO	-	glpi_groups.completename	Hierarquia completa do grupo solucionador	-
+metabase_changes	grupo_solucionador_nome	VARCHAR(255)	NÃO	-	glpi_groups.name	Nome simples do grupo	-
+metabase_changes	id_grupo_solucionador	INT	NÃO	-	glpi_groups.id	ID do grupo solucionador	-
+metabase_changes	tipo_contrato	VARCHAR(100)	NÃO	-	Derivado de grupo_solucionador	Primeiro nível da hierarquia do grupo	-
+metabase_changes	grupo_solucao	VARCHAR(100)	NÃO	-	Derivado de grupo_solucionador	Segundo nível da hierarquia do grupo	-
+metabase_changes	tipo_atividade	VARCHAR(100)	NÃO	-	Derivado de grupo_solucionador	Último nível da hierarquia do grupo	Em dashboards, usado como classificação técnica em alguns cards
+metabase_changes	classificacao	VARCHAR(255)	NÃO	-	Plugin Fields - glpi_plugin_fields_classificaofielddropdowns.name	Classificação da mudança	Campo adicional de gestão de mudanças
+metabase_changes	classificacao_tecnica	VARCHAR(255)	NÃO	-	Plugin Fields - glpi_plugin_fields_classificaotecnicafielddropdowns.name	Classificação técnica	Campo adicional de gestão de mudanças
+metabase_changes	ambiente	VARCHAR(255)	NÃO	-	Plugin Fields - glpi_plugin_fields_ambientefielddropdowns.name	Ambiente impactado	-
+metabase_changes	data_inicio_mudanca	DATETIME	NÃO	-	Plugin Fields - glpi_plugin_fields_changegestodemudanas.datainiciomudanafield	Data de início da mudança	UTC
+metabase_changes	data_fim_mudanca	DATETIME	NÃO	-	Plugin Fields - glpi_plugin_fields_changegestodemudanas.datafimmudanafield	Data de fim da mudança	UTC
+metabase_changes	justificativa	TEXT	NÃO	-	Plugin Fields - glpi_plugin_fields_changegestodemudanas.justificativafield	Justificativa da mudança	-
+metabase_changes	impacto_negocio	TEXT	NÃO	-	Plugin Fields - glpi_plugin_fields_changegestodemudanas.impactoaonegociofield	Impacto da mudança no negócio	-
+metabase_changes	agente_solucionador	VARCHAR(255)	NÃO	-	glpi_users	Nome do técnico atribuído	Montado por firstname/realname com fallback para username
+metabase_changes	nome_solicitante	VARCHAR(255)	NÃO	-	glpi_users	Nome do solicitante	-
+metabase_changes	entidade_cliente	VARCHAR(255)	NÃO	-	glpi_entities.name	Cliente/entidade	-
+metabase_changes	localizacao_fisica	VARCHAR(255)	NÃO	-	glpi_locations.name	Localização física	-
+metabase_changes	tags	TEXT	NÃO	-	Agregação de glpi_plugin_tag_tags.name	Lista textual de tags ativas da mudança	Uso simples no Metabase
+metabase_changes	users_id_recipient	INT	NÃO	-	glpi_changes.users_id_recipient	ID do solicitante	-
+metabase_changes	locations_id	INT	NÃO	-	glpi_changes.locations_id	ID da localização	-
+metabase_changes	data_carga	DATETIME	NÃO	-	ETL	Timestamp UTC da execução que gravou a linha	Usado para pruning em full
+metabase_problems	chamado	INT	SIM	-	glpi_problems.id	Identificador único do problema	Grão: 1 linha por problem
+metabase_problems	titulo_chamado	VARCHAR(255)	NÃO	-	glpi_problems.name	Título do problema	-
+metabase_problems	data_criacao	DATETIME	NÃO	-	glpi_problems.date	Data de abertura	UTC
+metabase_problems	data_solucao	DATETIME	NÃO	-	glpi_problems.solvedate	Data de solução	UTC
+metabase_problems	data_fechamento	DATETIME	NÃO	-	glpi_problems.closedate	Data de fechamento	UTC
+metabase_problems	data_ultima_atualizacao	DATETIME	NÃO	-	glpi_problems.date_mod	Última atualização	UTC
+metabase_problems	data_id	DATE	NÃO	-	DATE(glpi_problems.date)	Data analítica	Usada com dim_calendario
+metabase_problems	status_chamado	VARCHAR(50)	NÃO	-	glpi_problems.status	Status numérico traduzido para texto	Ex.: Novo, Solucionado, Fechado
+metabase_problems	prioridade	VARCHAR(20)	NÃO	-	glpi_problems.priority	Valor convertido para texto	-
+metabase_problems	urgencia	VARCHAR(20)	NÃO	-	glpi_problems.urgency	Valor convertido para texto	-
+metabase_problems	impacto	VARCHAR(20)	NÃO	-	glpi_problems.impact	Valor convertido para texto	-
+metabase_problems	ttr_status	VARCHAR(50)	NÃO	-	Cálculo SQL no extractor	Situação do SLA de solução	NO PRAZO / EM RISCO / FORA DO PRAZO / SEM SLA
+metabase_problems	ttr_em_risco	TINYINT(1)	NÃO	-	Cálculo SQL no extractor	1 quando SLA está em risco	0/1
+metabase_problems	limite_solucao	DATETIME	NÃO	-	glpi_problems.time_to_resolve	Prazo limite de solução	UTC
+metabase_problems	mttr_minutos	INT	NÃO	-	Cálculo SQL no extractor	Tempo até solução em minutos	-
+metabase_problems	aging_minutos	INT	NÃO	-	Cálculo SQL no extractor	Tempo de vida do problema em minutos	Para abertos usa UTC_TIMESTAMP()
+metabase_problems	servico_completo	VARCHAR(255)	NÃO	-	glpi_itilcategories.completename	Caminho completo da categoria	-
+metabase_problems	categoria	VARCHAR(100)	NÃO	-	Derivado de servico_completo	Primeiro nível da categoria	-
+metabase_problems	subcategoria	VARCHAR(100)	NÃO	-	Derivado de servico_completo	Segundo nível da categoria	-
+metabase_problems	servico	VARCHAR(100)	NÃO	-	Derivado de servico_completo	Último nível da categoria	-
+metabase_problems	tipo_solucao	VARCHAR(255)	NÃO	-	glpi_solutiontypes.name	Tipo/modelo de solução	-
+metabase_problems	disciplina_solucao	VARCHAR(100)	NÃO	-	Derivado de tipo_solucao	Parte anterior a :: quando existir	-
+metabase_problems	modelo_solucao	VARCHAR(100)	NÃO	-	Derivado de tipo_solucao	Parte posterior a :: ou valor integral	-
+metabase_problems	grupo_solucionador	VARCHAR(255)	NÃO	-	glpi_groups.completename	Hierarquia completa do grupo solucionador	-
+metabase_problems	grupo_solucionador_nome	VARCHAR(255)	NÃO	-	glpi_groups.name	Nome simples do grupo	-
+metabase_problems	id_grupo_solucionador	INT	NÃO	-	glpi_groups.id	ID do grupo solucionador	-
+metabase_problems	tipo_contrato	VARCHAR(100)	NÃO	-	Derivado de grupo_solucionador	Primeiro nível da hierarquia do grupo	-
+metabase_problems	grupo_solucao	VARCHAR(100)	NÃO	-	Derivado de grupo_solucionador	Segundo nível da hierarquia do grupo	-
+metabase_problems	tipo_atividade	VARCHAR(100)	NÃO	-	Derivado de grupo_solucionador	Último nível da hierarquia do grupo	-
+metabase_problems	causa_raiz	VARCHAR(255)	NÃO	-	Plugin Fields - glpi_plugin_fields_causaraizfielddropdowns.name	Causa raiz do problema	Campo adicional de gestão de problemas
+metabase_problems	agente_solucionador	VARCHAR(255)	NÃO	-	glpi_users	Nome do técnico atribuído	Montado por firstname/realname com fallback para username
+metabase_problems	nome_solicitante	VARCHAR(255)	NÃO	-	glpi_users	Nome do solicitante	-
+metabase_problems	entidade_cliente	VARCHAR(255)	NÃO	-	glpi_entities.name	Cliente/entidade	-
+metabase_problems	localizacao_fisica	VARCHAR(255)	NÃO	-	glpi_locations.name	Localização física	-
+metabase_problems	tags	TEXT	NÃO	-	Agregação de glpi_plugin_tag_tags.name	Lista textual de tags ativas do problema	Uso simples no Metabase
+metabase_problems	users_id_recipient	INT	NÃO	-	glpi_problems.users_id_recipient	ID do solicitante	-
+metabase_problems	locations_id	INT	NÃO	-	glpi_problems.locations_id	ID da localização	-
+metabase_problems	data_carga	DATETIME	NÃO	-	ETL	Timestamp UTC da execução que gravou a linha	Usado para pruning em full
+metabase_timesheet	id_tarefa	VARCHAR(100)	SIM	-	ETL	Chave técnica do apontamento	Ex.: Ticket_123, Change_45, Problem_9, FORM_77
+metabase_timesheet	id_tarefa_original	INT	NÃO	-	Tarefa operacional ou resposta Form 142	ID original da tarefa ou da resposta	-
+metabase_timesheet	id_resposta	INT	NÃO	-	Formcreator	Preenchido apenas para Formulário 142	NULL para tarefas padrão
+metabase_timesheet	id_tarefa_formatado	VARCHAR(50)	NÃO	-	ETL	Identificador amigável no padrão id_pai-id_original	Usado em drill-down
+metabase_timesheet	tipo_ticket	VARCHAR(20)	NÃO	-	ETL	Indica a origem do apontamento	Valores: Ticket, Change, Problem, Forms
+metabase_timesheet	id_pai	INT	NÃO	metabase_tickets.chamado / metabase_changes.chamado / metabase_problems.chamado	Tabela pai vinculada	ID do ticket/change/problem associado	Relacionamento depende de tipo_ticket
+metabase_timesheet	data_abertura_pai	DATETIME	NÃO	-	Tabela pai	Data de abertura do registro pai	UTC
+metabase_timesheet	data_fechamento_pai	DATETIME	NÃO	-	Tabela pai	Data de fechamento do registro pai	UTC
+metabase_timesheet	cliente	VARCHAR(255)	NÃO	-	Entidade do pai ou resposta da pergunta 1653	Cliente/entidade do apontamento	-
+metabase_timesheet	grupo_solucionador	VARCHAR(255)	NÃO	-	Grupo do pai ou resposta da pergunta 1654	Grupo/Torre do apontamento	-
+metabase_timesheet	tecnico	VARCHAR(255)	NÃO	-	glpi_users	Técnico responsável pelo apontamento	-
+metabase_timesheet	data_lancamento	DATETIME	NÃO	-	Data da tarefa ou pergunta 1651	Data do lançamento	UTC
+metabase_timesheet	data_criacao_tarefa	DATETIME	NÃO	-	Data da tarefa ou request_date do formulário	Data original de criação	UTC
+metabase_timesheet	horas	DECIMAL(10,4)	NÃO	-	Cálculo ETL	Actiontime/3600 ou soma das tarefas do ticket no Form 142	Registros com 0 horas são ignorados
+metabase_timesheet	tipo_hora	VARCHAR(50)	NÃO	-	glpi_taskcategories.name ou pergunta 1655	Tipo de hora	Fallback Comercial nas tarefas padrão
+metabase_timesheet	data_carga	DATETIME	NÃO	-	ETL	Timestamp UTC da carga	-
+dim_tags	tag_id	INT	SIM	-	glpi_plugin_tag_tags.id	Identificador da tag	Dimensão de tags
+
+
+dim_tags	entities_id	INT	NÃO	-	glpi_plugin_tag_tags.entities_id	Entidade da tag	-
+dim_tags	is_recursive	TINYINT(1)	NÃO	-	glpi_plugin_tag_tags.is_recursive	Indica herança recursiva	0/1
+dim_tags	is_active	TINYINT(1)	NÃO	-	glpi_plugin_tag_tags.is_active	Indica se tag está ativa	0/1
+dim_tags	name	VARCHAR(255)	NÃO	-	glpi_plugin_tag_tags.name	Nome da tag	-
+dim_tags	comment	TEXT	NÃO	-	glpi_plugin_tag_tags.comment	Comentário/descrição	-
+dim_tags	color	VARCHAR(20)	NÃO	-	glpi_plugin_tag_tags.color	Cor da tag	-
+dim_tags	type_menu	INT	NÃO	-	glpi_plugin_tag_tags.type_menu	Tipo/menu da tag	-
+dim_tags	data_carga	DATETIME	NÃO	-	ETL	Timestamp UTC da sincronização	Atualizada em todos os jobs de tickets/changes/problems
+bridge_ticket_tags	ticket_id	INT	SIM (composta)	metabase_tickets.chamado	glpi_plugin_tag_tagitems.items_id	ID do ticket relacionado à tag	Itemtype=Ticket
+bridge_ticket_tags	tag_id	INT	SIM (composta)	dim_tags.tag_id	glpi_plugin_tag_tagitems.plugin_tag_tags_id	ID da tag	-
+bridge_ticket_tags	data_carga	DATETIME	NÃO	-	ETL	Timestamp UTC da sincronização	Usado para pruning em full
+bridge_change_tags	change_id	INT	SIM (composta)	metabase_changes.chamado	glpi_plugin_tag_tagitems.items_id	ID da mudança relacionada à tag	Itemtype=Change
+bridge_change_tags	tag_id	INT	SIM (composta)	dim_tags.tag_id	glpi_plugin_tag_tagitems.plugin_tag_tags_id	ID da tag	-
+bridge_change_tags	data_carga	DATETIME	NÃO	-	ETL	Timestamp UTC da sincronização	Usado para pruning em full
+bridge_problem_tags	problem_id	INT	SIM (composta)	metabase_problems.chamado	glpi_plugin_tag_tagitems.items_id	ID do problema relacionado à tag	Itemtype=Problem
+bridge_problem_tags	tag_id	INT	SIM (composta)	dim_tags.tag_id	glpi_plugin_tag_tagitems.plugin_tag_tags_id	ID da tag	-
+bridge_problem_tags	data_carga	DATETIME	NÃO	-	ETL	Timestamp UTC da sincronização	Usado para pruning em full
+etl_checkpoint	entity_name	VARCHAR(50)	SIM	-	ETL	Nome lógico da entidade processada	Ex.: tickets, changes, problems, timesheet
+etl_checkpoint	last_success_at	DATETIME	NÃO	-	ETL	Última execução bem-sucedida	UTC
+etl_run	run_id	INT AUTO_INCREMENT	SIM	-	ETL	Identificador único da execução	-
+etl_run	started_at	DATETIME	NÃO	-	ETL	Início da execução	UTC
+etl_run	finished_at	DATETIME	NÃO	-	ETL	Fim da execução	UTC
+etl_run	status	VARCHAR(20)	NÃO	-	ETL	Status da execução	RUNNING / SUCCESS / FAILED
+etl_run	mode	VARCHAR(20)	NÃO	-	ETL	Modo de execução	incremental / full
+etl_run	entity_name	VARCHAR(50)	NÃO	etl_checkpoint.entity_name	ETL	Entidade processada	Relacionamento lógico por nome da entidade
+etl_run	window_full_days	INT	NÃO	-	ETL/configuração	Janela usada em recarga full	-
+etl_run	batch_size	INT	NÃO	-	ETL/configuração	Tamanho do lote de processamento	-
+etl_run	ids_selected	INT	NÃO	-	ETL	Quantidade de IDs/eventos selecionados na origem	-
+etl_run	rows_upserted	INT	NÃO	-	ETL	Total acumulado de linhas gravadas/atualizadas	-
+etl_run	tables_updated	TEXT	NÃO	-	ETL	Lista textual das tabelas impactadas	-
+etl_run	validation_json	JSON	NÃO	-	ETL	Resultado de validações ou contexto de erro	-
+etl_run	message	TEXT	NÃO	-	ETL	Mensagem final da execução	-
+etl_error	error_id	INT AUTO_INCREMENT	SIM	-	ETL	Identificador único do erro	-
+etl_error	run_id	INT	NÃO	etl_run.run_id	ETL	Execução relacionada ao erro	Relacionamento lógico 1:N
+etl_error	error_at	DATETIME	NÃO	-	ETL	Momento do erro	UTC
+etl_error	entity_name	VARCHAR(50)	NÃO	etl_checkpoint.entity_name / etl_run.entity_name	ETL	Entidade em processamento	-
+etl_error	message	TEXT	NÃO	-	ETL	Mensagem do erro	-
+etl_error	context_json	JSON	NÃO	-	ETL	Contexto técnico complementar	Ex.: exception_class, file, line, batch
