@@ -96,6 +96,18 @@ erDiagram
         DATETIME error_at
     }
 
+    history_tickets_backlog {
+        INT chamado_id PK
+        DATETIME data_abertura
+        DATE data_coleta PK
+    }
+
+    history_problems_backlog {
+        INT problem_id PK
+        DATETIME data_abertura
+        DATE data_coleta PK
+    }
+
     metabase_tickets ||--o{ bridge_ticket_tags : possui
     dim_tags ||--o{ bridge_ticket_tags : classifica
 
@@ -109,6 +121,9 @@ erDiagram
     metabase_changes ||--o{ metabase_timesheet : id_pai_quando_Change
     metabase_problems ||--o{ metabase_timesheet : id_pai_quando_Problem
 
+    metabase_tickets ||--o{ history_tickets_backlog : historico_snapshot
+    metabase_problems ||--o{ history_problems_backlog : historico_snapshot
+
     etl_run ||--o{ etl_error : registra
 ```
 
@@ -119,6 +134,8 @@ erDiagram
 - `metabase_changes`: mudanças
 - `metabase_problems`: problemas
 - `metabase_timesheet`: horas consolidadas
+- `history_tickets_backlog`: histórico diário de backlog de tickets
+- `history_problems_backlog`: histórico diário de backlog de problemas
 
 ### Dimensão e pontes
 - `dim_tags`: catálogo de etiquetas

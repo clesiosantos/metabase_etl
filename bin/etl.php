@@ -48,12 +48,16 @@ require_once __DIR__ . '/../src/Extractors/TimesheetExtractor.php';
 require_once __DIR__ . '/../src/Loaders/TimesheetLoader.php';
 require_once __DIR__ . '/../src/Jobs/TimesheetJob.php';
 
-// 8. Carregar Orquestradores
+// 8. Carregar Componentes de Backlog Histórico
+require_once __DIR__ . '/../src/Loaders/BacklogLoader.php';
+require_once __DIR__ . '/../src/Jobs/BacklogJob.php';
+
+// 9. Carregar Orquestradores
 require_once __DIR__ . '/../src/Jobs/TicketsJob.php';
 require_once __DIR__ . '/../src/TicketsEtl.php';
 
 function usage(): void {
-  fwrite(STDERR, "Uso:\n  php bin/etl.php <all|tickets|changes|problems|timesheet> [--full]\n");
+  fwrite(STDERR, "Uso:\n  php bin/etl.php <all|tickets|changes|problems|timesheet|backlog> [--full]\n");
 }
 
 $args = $argv;
@@ -72,8 +76,8 @@ $src = Db::pdo($CFG['source']);
 $dst = Db::pdo($CFG['target']);
 
 // Lista de entidades para o comando 'all'
-$entities = ($entity === 'all') 
-    ? ['tickets', 'changes', 'problems', 'timesheet'] 
+$entities = ($entity === 'all')
+    ? ['tickets', 'changes', 'problems', 'timesheet', 'backlog']
     : [$entity];
 
 foreach ($entities as $ent) {
@@ -92,6 +96,9 @@ foreach ($entities as $ent) {
                 break;
             case 'timesheet':
                 TimesheetJob::run($src, $dst, $log, $mode, $CFG['etl']['batch_size'] ?? 1000);
+                break;
+            case 'backlog':
+                BacklogJob::runSnapshot($dst, gmdate('Y-m-d'), $log);
                 break;
             default:
                 if ($entity !== 'all') {

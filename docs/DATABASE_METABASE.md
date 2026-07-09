@@ -14,6 +14,8 @@ Este documento cobre as tabelas gerenciadas pelo projeto no banco do Data Wareho
 - `bridge_ticket_tags`
 - `bridge_change_tags`
 - `bridge_problem_tags`
+- `history_tickets_backlog`
+- `history_problems_backlog`
 - `etl_checkpoint`
 - `etl_run`
 - `etl_error`
@@ -47,6 +49,9 @@ erDiagram
     metabase_changes ||--o{ metabase_timesheet : aponta_quando_tipo_Change
     metabase_problems ||--o{ metabase_timesheet : aponta_quando_tipo_Problem
 
+    metabase_tickets ||--o{ history_tickets_backlog : historico_snapshot
+    metabase_problems ||--o{ history_problems_backlog : historico_snapshot
+
     etl_run ||--o{ etl_error : registra
     etl_checkpoint ||--o{ etl_run : controla_janela_logica
 ```
@@ -63,6 +68,8 @@ erDiagram
 | `bridge_ticket_tags` | Ponte N:N entre tickets e tags | 1 linha por par ticket/tag | `glpi_plugin_tag_tagitems` |
 | `bridge_change_tags` | Ponte N:N entre mudanças e tags | 1 linha por par change/tag | `glpi_plugin_tag_tagitems` |
 | `bridge_problem_tags` | Ponte N:N entre problemas e tags | 1 linha por par problem/tag | `glpi_plugin_tag_tagitems` |
+| `history_tickets_backlog` | Histórico diário de backlog de tickets | 1 linha por ticket aberto por dia de coleta | `metabase_tickets` |
+| `history_problems_backlog` | Histórico diário de backlog de problemas | 1 linha por problema aberto por dia de coleta | `metabase_problems` |
 | `etl_checkpoint` | Controle de última carga bem-sucedida | 1 linha por entidade ETL | próprio ETL |
 | `etl_run` | Log de execução das cargas | 1 linha por execução | próprio ETL |
 | `etl_error` | Log de erros | 1 linha por erro | próprio ETL |
@@ -724,6 +731,75 @@ Uma linha por erro registrado.
 | `entity_name` | `VARCHAR(50)` | ETL | Entidade em processamento |
 | `message` | `TEXT` | ETL | Mensagem do erro |
 | `context_json` | `JSON` | ETL | Contexto complementar do erro |
+
+---
+
+## 5.12 `history_tickets_backlog`
+
+### Finalidade
+Tabela histórica para monitoramento e análise da evolução do backlog de chamados (Incidentes e Requisições) ao longo do tempo.
+
+### Grão
+Uma linha por chamado aberto por dia de coleta.
+
+### Chave
+- **PK composta:** (`chamado_id`, `data_coleta`)
+
+### Relacionamentos lógicos
+- N:1 com `metabase_tickets` por `chamado_id`
+
+### Origem dos dados
+- `metabase_tickets`
+
+### Regras de negócio aplicadas
+- Registra diariamente os chamados que estiverem "Em Aberto" (status diferente de Solucionado e Fechado) no momento da coleta.
+- A coleta é executada diariamente às 00:00:00 (ou ao final do dia), consolidando e "travando" o histórico.
+- Um chamado é considerado em aberto na data `D` se:
+  - `data_criacao <= D 23:59:59`
+  - AND (`data_solucao` IS NULL OR `data_solucao` > `D 23:59:59`)
+  - AND (`data_fechamento` IS NULL OR `data_fechamento` > `D 23:59:59`)
+
+### Dicionário de colunas
+
+| Coluna | Tipo | Origem | Regra / significado |
+|---|---|---|---|
+| `chamado_id` | `INT` | `metabase_tickets.chamado` | ID do chamado (Incidente ou Requisição) |
+| `data_abertura` | `DATETIME` | `metabase_tickets.data_criacao` | Data de abertura do chamado |
+| `data_coleta` | `DATE` | ETL | Data de referência da coleta (snapshot) |
+
+---
+
+## 5.13 `history_problems_backlog`
+
+### Finalidade
+Tabela histórica para monitoramento e análise da evolução do backlog de Problemas ao longo do tempo.
+
+### Grão
+Uma linha por problema aberto por dia de coleta.
+
+### Chave
+- **PK composta:** (`problem_id`, `data_coleta`)
+
+### Relacionamentos lógicos
+- N:1 com `metabase_problems` por `problem_id`
+
+### Origem dos dados
+- `metabase_problems`
+
+### Regras de negócio aplicadas
+- Registra diariamente os problemas que estiverem "Em Aberto" (status diferente de Solucionado e Fechado) no momento da coleta.
+- Um problema é considerado em aberto na data `D` se:
+  - `data_criacao <= D 23:59:59`
+  - AND (`data_solucao` IS NULL OR `data_solucao` > `D 23:59:59`)
+  - AND (`data_fechamento` IS NULL OR `data_fechamento` > `D 23:59:59`)
+
+### Dicionário de colunas
+
+| Coluna | Tipo | Origem | Regra / significado |
+|---|---|---|---|
+| `problem_id` | `INT` | `metabase_problems.chamado` | ID do problema |
+| `data_abertura` | `DATETIME` | `metabase_problems.data_criacao` | Data de abertura do problema |
+| `data_coleta` | `DATE` | ETL | Data de referência da coleta (snapshot) |
 
 ---
 

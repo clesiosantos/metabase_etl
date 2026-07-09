@@ -196,3 +196,9 @@ etl_error	error_at	DATETIME	NÃO	-	ETL	Momento do erro	UTC
 etl_error	entity_name	VARCHAR(50)	NÃO	etl_checkpoint.entity_name / etl_run.entity_name	ETL	Entidade em processamento	-
 etl_error	message	TEXT	NÃO	-	ETL	Mensagem do erro	-
 etl_error	context_json	JSON	NÃO	-	ETL	Contexto técnico complementar	Ex.: exception_class, file, line, batch
+history_tickets_backlog	chamado_id	INT	SIM (composta)	metabase_tickets.chamado	metabase_tickets.chamado	ID do chamado (Incidente ou Requisição)	-
+history_tickets_backlog	data_abertura	DATETIME	NÃO	-	metabase_tickets.data_criacao	Data de abertura do chamado	UTC
+history_tickets_backlog	data_coleta	DATE	SIM (composta)	-	ETL	Data de referência da coleta (snapshot)	-
+history_problems_backlog	problem_id	INT	SIM (composta)	metabase_problems.chamado	metabase_problems.chamado	ID do problema	-
+history_problems_backlog	data_abertura	DATETIME	NÃO	-	metabase_problems.data_criacao	Data de abertura do problema	UTC
+history_problems_backlog	data_coleta	DATE	SIM (composta)	-	ETL	Data de referência da coleta (snapshot)	-
