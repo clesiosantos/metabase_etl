@@ -23,12 +23,12 @@ final class BacklogJob {
     $sqlTickets = "
       SELECT chamado AS chamado_id, data_criacao AS data_abertura
       FROM metabase_tickets
-      WHERE data_criacao <= :date_end
-        AND (data_solucao IS NULL OR data_solucao > :date_end)
-        AND (data_fechamento IS NULL OR data_fechamento > :date_end)
+      WHERE data_criacao <= ?
+        AND (data_solucao IS NULL OR data_solucao > ?)
+        AND (data_fechamento IS NULL OR data_fechamento > ?)
     ";
     $stTickets = $dst->prepare($sqlTickets);
-    $stTickets->execute([':date_end' => $dateEnd]);
+    $stTickets->execute([$dateEnd, $dateEnd, $dateEnd]);
     $tickets = $stTickets->fetchAll(PDO::FETCH_ASSOC);
 
     $ticketRows = [];
@@ -44,12 +44,12 @@ final class BacklogJob {
     $sqlProblems = "
       SELECT chamado AS problem_id, data_criacao AS data_abertura
       FROM metabase_problems
-      WHERE data_criacao <= :date_end
-        AND (data_solucao IS NULL OR data_solucao > :date_end)
-        AND (data_fechamento IS NULL OR data_fechamento > :date_end)
+      WHERE data_criacao <= ?
+        AND (data_solucao IS NULL OR data_solucao > ?)
+        AND (data_fechamento IS NULL OR data_fechamento > ?)
     ";
     $stProblems = $dst->prepare($sqlProblems);
-    $stProblems->execute([':date_end' => $dateEnd]);
+    $stProblems->execute([$dateEnd, $dateEnd, $dateEnd]);
     $problems = $stProblems->fetchAll(PDO::FETCH_ASSOC);
 
     $problemRows = [];
