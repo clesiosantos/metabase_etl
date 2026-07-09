@@ -77,7 +77,7 @@ $dst = Db::pdo($CFG['target']);
 
 // Lista de entidades para o comando 'all'
 $entities = ($entity === 'all')
-    ? ['tickets', 'changes', 'problems', 'timesheet', 'backlog']
+    ? ['tickets', 'changes', 'problems', 'timesheet']
     : [$entity];
 
 foreach ($entities as $ent) {

@@ -74,6 +74,9 @@ try {
     }
   } else {
     $date = $params['date'] ?? gmdate('Y-m-d');
+    if ($date === 'yesterday') {
+      $date = gmdate('Y-m-d', strtotime('-1 day'));
+    }
     echo "Iniciando captura de snapshot de backlog para a data $date...\n";
     $res = BacklogJob::runSnapshot($dst, (string)$date, $log);
     echo "Snapshot finalizado com sucesso!\n";

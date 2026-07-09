@@ -1,0 +1,16 @@
+[Unit]
+Description=ETL GLPI -> DW Backlog Snapshot (Metabase)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/data/etl-glpi-metabase
+ExecStart=/usr/bin/php /data/etl-glpi-metabase/bin/backlog.php --date=yesterday
+
+# Mantém o output no journal do systemd
+StandardOutput=journal
+StandardError=journal
+
+# Evita execuções que fiquem presas
+TimeoutStartSec=30m

@@ -1,0 +1,11 @@
+[Unit]
+Description=Agendamento do Snapshot de Backlog GLPI -> DW (Metabase)
+
+[Timer]
+# Rodar diariamente às 00:05:00 (UTC) para capturar o backlog do dia anterior
+OnCalendar=*-*-* 00:05:00
+Persistent=true
+Unit=etl-glpi-backlog.service
+
+[Install]
+WantedBy=timers.target
